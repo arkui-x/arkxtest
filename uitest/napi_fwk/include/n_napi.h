@@ -16,11 +16,11 @@
 #ifndef UITEST_LIBN_N_NAPI_H
 #define UITEST_LIBN_N_NAPI_H
 
-// #ifdef FILE_SUBSYSTEM_DEBUG_LOCAL
-// #include <node_api.h>
-// #else
+#ifdef FILE_SUBSYSTEM_DEBUG_LOCAL
+#include <node_api.h>
+#else
 #include "napi/native_api.h"
 #include "napi/native_node_api.h"
-// #endif
+#endif
 
 #endif // UITEST_LIBN_N_NAPI_H

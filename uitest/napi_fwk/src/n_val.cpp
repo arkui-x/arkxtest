@@ -74,26 +74,26 @@ tuple<bool, unique_ptr<char[]>, size_t> NVal::ToUTF8String() const
 
 tuple<bool, unique_ptr<char[]>, size_t> NVal::ToUTF16String() const
 {
-// #ifdef FILE_SUBSYSTEM_DEBUG_LOCAL
-//     size_t strLen = 0;
-//     napi_status status = napi_get_value_string_utf16(env_, val_, nullptr, -1, &strLen);
-//     if (status != napi_ok) {
-//         return {false, nullptr, 0};
-//     }
+#ifdef FILE_SUBSYSTEM_DEBUG_LOCAL
+    size_t strLen = 0;
+    napi_status status = napi_get_value_string_utf16(env_, val_, nullptr, -1, &strLen);
+    if (status != napi_ok) {
+        return {false, nullptr, 0};
+    }
 
-//     auto str = make_unique<char16_t[]>(++strLen);
-//     status = napi_get_value_string_utf16(env_, val_, str.get(), strLen, nullptr);
-//     if (status != napi_ok) {
-//         return {false, nullptr, 0};
-//     }
+    auto str = make_unique<char16_t[]>(++strLen);
+    status = napi_get_value_string_utf16(env_, val_, str.get(), strLen, nullptr);
+    if (status != napi_ok) {
+        return {false, nullptr, 0};
+    }
 
-//     strLen = reinterpret_cast<char *>(str.get() + strLen) - reinterpret_cast<char *>(str.get());
-//     auto strRet = unique_ptr<char[]>(reinterpret_cast<char *>(str.release()));
-//     return {true, move(strRet), strLen};
-// #else
+    strLen = reinterpret_cast<char *>(str.get() + strLen) - reinterpret_cast<char *>(str.get());
+    auto strRet = unique_ptr<char[]>(reinterpret_cast<char *>(str.release()));
+    return {true, move(strRet), strLen};
+#else
     // Note that quickjs doesn't support utf16
     return ToUTF8String();
-// #endif
+#endif
 }
 
 tuple<bool, void *> NVal::ToPointer() const
