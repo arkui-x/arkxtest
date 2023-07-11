@@ -1,0 +1,72 @@
+# Copyright (c) 2023 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/ohos.gni")
+import("//commonlibrary/ets_utils/ets_utils_config.gni")
+import("//foundation/arkui/ace_engine/ace_config.gni")
+import("//foundation/arkui/ace_engine/build/ace_gen_obj.gni")
+
+root_path = "//test/testfwk/arkxtest/uitest"
+libn_dirs = "${root_path}/napi_fwk"
+libn_src = [
+  "$libn_dirs/src/n_async/n_async_work_callback.cpp",
+  "$libn_dirs/src/n_async/n_async_work_promise.cpp",
+  "$libn_dirs/src/n_async/n_ref.cpp",
+  "$libn_dirs/src/n_class.cpp",
+  "$libn_dirs/src/n_error.cpp",
+  "$libn_dirs/src/n_func_arg.cpp",
+  "$libn_dirs/src/n_val.cpp",
+]
+
+config("uitest_common_configs") {
+  cflags = [
+    "-Wfloat-equal",
+    "-Wformat=2",
+    "-Wshadow",
+  ]
+}
+
+ohos_source_set("uitest_core_static") {
+  include_dirs = [
+    "$libn_dirs/include",
+    "$libn_dirs/include/n_async",
+  ]
+
+  sources = libn_src
+  configs = [ ":uitest_common_configs" ]
+
+  deps = [ "$plugins_root/libs/napi:napi_${target_os}" ]
+
+  use_exceptions = true
+
+  if (is_standard_system) {
+    external_deps = [ "hiviewdfx_hilog_native:libhilog" ]
+  } else {
+    external_deps = [
+      "c_utils:utils",
+      "hilog:libhilog",
+    ]
+  }
+
+  if (is_cross_platform_build) {
+    include_dirs += [ "$plugins_root/hilog/include" ]
+    if (target_os == "android") {
+      defines = [ "ANDROID_PLATFORM" ]
+    }
+    if (target_os == "ios") {
+      defines = [ "IOS_PLATFORM" ]
+    }
+  } else {
+    deps += [ "$napi_root:ace_napi" ]
+  }
+}
