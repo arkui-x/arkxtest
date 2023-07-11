@@ -37,10 +37,10 @@ constexpr int ERRNO_NOERR = 0;
 constexpr int ARKUI_TEST_TAG = 17000000;
 
 enum ErrCodeSuffixOfArkUITest {
-    E_AWAIT = 2,
-    E_ASSERTFAILD,
-    E_DESTROYED,
-    E_NOTSUPPORT
+    E_AWAIT = ARKUI_TEST_TAG + 2,
+    E_ASSERTFAILD = ARKUI_TEST_TAG + 3,
+    E_DESTROYED = ARKUI_TEST_TAG + 4,
+    E_NOTSUPPORT = ARKUI_TEST_TAG + 5,
 };
 
 enum CommonErrCode {

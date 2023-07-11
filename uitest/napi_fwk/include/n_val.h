@@ -21,7 +21,7 @@
 #include <tuple>
 #include <vector>
 
-#include "n_napi.h"
+#include "n_class.h"
 
 namespace OHOS {
 namespace UiTest {
@@ -64,6 +64,20 @@ public:
     static NVal CreateUTF8String(napi_env env, const char *str, ssize_t len);
     static NVal CreateUint8Array(napi_env env, void *buf, size_t bufLen);
     static std::tuple<NVal, void *> CreateArrayBuffer(napi_env env, size_t len);
+
+    template <class T> static NVal CreateArray(napi_env env, std::vector<std::unique_ptr<T>> vec, std::string className)
+    {
+        napi_value res = nullptr;
+        napi_create_array_with_length(env, vec.size(), &res);
+        for (size_t i = 0; i < vec.size(); i++) {
+            napi_value jsClass = NClass::InstantiateClass(env, className, {});
+            NClass::SetEntityFor<T>(env, jsClass, move(vec[i]));
+            napi_set_element(env, res, i, jsClass);
+        }
+        vec.clear();
+        return {env, res};
+    }
+
     /* SHOULD ONLY BE USED FOR OBJECT */
     bool HasProp(std::string propName) const;
     NVal GetProp(std::string propName) const;

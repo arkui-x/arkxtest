@@ -42,10 +42,28 @@ ohos_source_set("uitest_core_static") {
     "$libn_dirs/include/n_async",
   ]
 
-  sources = libn_src
-  configs = [ ":uitest_common_configs" ]
+  include_dirs += [
+    "/core",
+    "${root_path}/napi",
+  ]
 
-  deps = [ "$plugins_root/libs/napi:napi_${target_os}" ]
+  sources = libn_src
+  configs = [
+    ":uitest_common_configs",
+    "//foundation/arkui/ace_engine:ace_config",
+    "//foundation/appframework/ability/ability_runtime/cross_platform/interfaces/kits/native/appkit:appkit_native_config",
+    "//foundation/appframework/ability/ability_runtime/cross_platform/interfaces/kits/native/ability:abilitykit_native_config",
+  ]
+  sources += [
+    "${root_path}/core/driver.cpp",
+    "${root_path}/napi/driver_napi_libn.cpp",
+    "${root_path}/napi/uitest_n_exporter.cpp",
+  ]
+
+  deps = [
+    "$plugins_root/libs/napi:napi_${target_os}",
+    "//foundation/appframework/arkui/uicontent:ace_uicontent_interface",
+  ]
 
   use_exceptions = true
 
@@ -57,11 +75,12 @@ ohos_source_set("uitest_core_static") {
       "hilog:libhilog",
     ]
   }
-
+  external_deps += [ "//foundation/appframework/ability/ability_runtime/cross_platform/frameworks/native/ability_delegator:appkit_delegator" ]
   if (is_cross_platform_build) {
     include_dirs += [ "$plugins_root/hilog/include" ]
     if (target_os == "android") {
       defines = [ "ANDROID_PLATFORM" ]
+      include_dirs += [ "//foundation/appframework/ability/ability_runtime/cross_platform/interfaces/kits/native/*/*" ]
     }
     if (target_os == "ios") {
       defines = [ "IOS_PLATFORM" ]
