@@ -70,7 +70,7 @@ napi_value OnNExporter::Text(napi_env env, napi_callback_info info)
         HILOG_ERROR("Uitest::OnNExporter::Text Cannot get entity of on");
         return nullptr;
     }
-    int32_t number_ = 0;
+    MatchPattern pattern = MatchPattern::EQUALS;
     if (funcArg.GetArgc() == NARG_CNT::TWO) {
         auto [succGetNum, number] = NVal(env, funcArg[NARG_POS::SECOND]).ToInt32();
         if (!succGetNum) {
@@ -78,9 +78,9 @@ napi_value OnNExporter::Text(napi_env env, napi_callback_info info)
             NError(E_PARAMS).ThrowErr(env);
             return nullptr;
         }
-        number_ = number;
+        pattern = static_cast<MatchPattern>(number);
     }
-    on->Text(string(txt.get()), number_);
+    on->Text(string(txt.get()), pattern);
     HILOG_INFO("Uitest::OnNExporter::Text end.");
     return thisVar;
 }
@@ -1113,7 +1113,10 @@ napi_value DriverNExporter::AssertComponentExist(napi_env env, napi_callback_inf
     auto on = NClass::GetEntityOf<On>(env, valOn.val_);
 
     auto cbExec = [env = env, driver, on]() -> NError {
-        driver->AssertComponentExist(*on);
+        bool ret = driver->AssertComponentExist(*on);
+        if (!ret) {
+            return NError(E_ASSERTFAILD);
+        }
         return NError(ERRNO_NOERR);
     };
 
@@ -1130,7 +1133,7 @@ napi_value DriverNExporter::AssertComponentExist(napi_env env, napi_callback_inf
     return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
 }
 
-static bool GetArg(napi_env env, napi_value thisValue, int number, ArgsInfo &argsInfo)
+static bool GetArg(napi_env env, napi_value thisValue, int number, shared_ptr<ArgsInfo> argsInfo)
 {
     auto [success, number_] = NVal(env, thisValue).ToInt32();
     if(!success){
@@ -1138,25 +1141,25 @@ static bool GetArg(napi_env env, napi_value thisValue, int number, ArgsInfo &arg
     }
     switch (number) {
         case NARG_POS::FIRST:
-            argsInfo.startx = number_;
+            argsInfo->startx = number_;
             break;
         case NARG_POS::SECOND:
-            argsInfo.starty = number_;
+            argsInfo->starty = number_;
             break;
         case NARG_POS::THIRD:
-            argsInfo.endx = number_;
+            argsInfo->endx = number_;
             break;
         case NARG_POS::FOURTH:
-            argsInfo.endy = number_;
+            argsInfo->endy = number_;
             break;
         case NARG_POS::FIFTH:
-            argsInfo.speed = number_;
+            argsInfo->speed = number_;
             break;
     }
     return true;
 }
 
-static bool GetArgs(napi_env env, NFuncArg &funcArg, ArgsInfo &argsInfo)
+static bool GetArgs(napi_env env, NFuncArg &funcArg, shared_ptr<ArgsInfo> argsInfo)
 {
     bool retFirst, retSecond, retThird, retFourth;
     bool retFifth = true;
@@ -1187,15 +1190,15 @@ napi_value DriverNExporter::Swipe(napi_env env, napi_callback_info info)
         return nullptr;
     }
 
-    ArgsInfo argsInfo;
+    auto argsInfo = make_shared<ArgsInfo>();
     if (!GetArgs(env, funcArg, argsInfo)) {
         HILOG_ERROR("Swipe Invalid arguments");
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
     }
 
-    auto cbExec = [env = env, driver, &argsInfo]() -> NError {
-        driver->Swipe(argsInfo.startx, argsInfo.starty, argsInfo.endx, argsInfo.endy, argsInfo.speed);
+    auto cbExec = [env = env, driver, argsInfo]() -> NError {
+        driver->Swipe(argsInfo->startx, argsInfo->starty, argsInfo->endx, argsInfo->endy, argsInfo->speed);
         return NError(ERRNO_NOERR);
     };
 
@@ -1216,7 +1219,7 @@ napi_value DriverNExporter::Fling(napi_env env, napi_callback_info info)
 {
     HILOG_INFO("Fling begin");
     NFuncArg funcArg(env, info);
-    if (!funcArg.InitArgs(NARG_CNT::TWO)) {
+    if (!funcArg.InitArgs(NARG_CNT::FOUR)) {
         HILOG_ERROR("Fling Number of arguments unmatched");
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
@@ -1231,14 +1234,26 @@ napi_value DriverNExporter::Fling(napi_env env, napi_callback_info info)
     NVal objFrom(env, funcArg[NARG_POS::FIRST]);
     if (!objFrom.TypeIs(napi_object)) {
         HILOG_ERROR("Invalid objFrom");
+        return nullptr;
     }
     auto ptFrom = NClass::GetEntityOf<Point>(env, objFrom.val_);
+    if (!ptFrom) {
+        HILOG_ERROR("Cannot get entity of ptFrom");
+        NError(E_DESTROYED).ThrowErr(env);
+        return nullptr;
+    }
 
     NVal objTo(env, funcArg[NARG_POS::SECOND]);
     if (!objTo.TypeIs(napi_object)) {
         HILOG_ERROR("Invalid objTo");
+        return nullptr;
     }
     auto ptTo = NClass::GetEntityOf<Point>(env, objTo.val_);
+    if (!ptTo) {
+        HILOG_ERROR("Cannot get entity of ptTo");
+        NError(E_DESTROYED).ThrowErr(env);
+        return nullptr;
+    }
 
     auto [resGetFirstArg, stepLen] = NVal(env, funcArg[NARG_POS::THIRD]).ToInt32();
     if (!resGetFirstArg) {
