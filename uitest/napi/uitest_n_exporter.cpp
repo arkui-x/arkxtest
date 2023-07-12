@@ -13,8 +13,9 @@
  * limitations under the License.
  */
 #include "uitest_n_exporter.h"
-#include "driver_napi_libn.h"
+
 #include "../core/driver.h"
+#include "driver_napi_libn.h"
 
 namespace OHOS::UiTest {
 
@@ -27,14 +28,10 @@ static void InitMatchPattern(napi_env env, napi_value exports)
     napi_value obj = nullptr;
     napi_create_object(env, &obj);
     static napi_property_descriptor desc[] = {
-        DECLARE_NAPI_STATIC_PROPERTY("EQUALS",
-                                    NVal::CreateInt32(env, (int32_t)MatchPattern::EQUALS).val_),
-        DECLARE_NAPI_STATIC_PROPERTY("CONTAINS",
-                                    NVal::CreateInt32(env, (int32_t)MatchPattern::CONTAINS).val_),
-        DECLARE_NAPI_STATIC_PROPERTY("STARTS_WITH",
-                                    NVal::CreateInt32(env, (int32_t)MatchPattern::STARTS_WITH).val_),
-        DECLARE_NAPI_STATIC_PROPERTY("ENDS_WITH",
-                                    NVal::CreateInt32(env, (int32_t)MatchPattern::ENDS_WITH).val_),
+        DECLARE_NAPI_STATIC_PROPERTY("EQUALS", NVal::CreateInt32(env, (int32_t)MatchPattern::EQUALS).val_),
+        DECLARE_NAPI_STATIC_PROPERTY("CONTAINS", NVal::CreateInt32(env, (int32_t)MatchPattern::CONTAINS).val_),
+        DECLARE_NAPI_STATIC_PROPERTY("STARTS_WITH", NVal::CreateInt32(env, (int32_t)MatchPattern::STARTS_WITH).val_),
+        DECLARE_NAPI_STATIC_PROPERTY("ENDS_WITH", NVal::CreateInt32(env, (int32_t)MatchPattern::ENDS_WITH).val_),
     };
     napi_define_properties(env, obj, sizeof(desc) / sizeof(desc[0]), desc);
     napi_set_named_property(env, exports, propertyName, obj);
@@ -50,7 +47,7 @@ napi_value UiTestExport(napi_env env, napi_value exports)
     products.emplace_back(std::make_unique<OnNExporter>(env, exports));
     products.emplace_back(std::make_unique<ComponentNExporter>(env, exports));
     products.emplace_back(std::make_unique<DriverNExporter>(env, exports));
-    for (auto &&product : products) {
+    for (auto&& product : products) {
         if (!product->Export()) {
             HILOG_ERROR("INNER BUG. Failed to export class %s for module UiTest ", product->GetClassName().c_str());
             return nullptr;

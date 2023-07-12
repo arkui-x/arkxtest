@@ -34,13 +34,13 @@ constexpr int ERESTART = 85;
 #endif
 constexpr int UNKROWN_ERR = -1;
 constexpr int ERRNO_NOERR = 0;
-constexpr int ARKUI_TEST_TAG = 17000000;
+constexpr int ARKX_TEST_TAG = 17000000;
 
 enum ErrCodeSuffixOfArkUITest {
-    E_AWAIT = ARKUI_TEST_TAG + 2,
-    E_ASSERTFAILD = ARKUI_TEST_TAG + 3,
-    E_DESTROYED = ARKUI_TEST_TAG + 4,
-    E_NOTSUPPORT = ARKUI_TEST_TAG + 5,
+    E_AWAIT = ARKX_TEST_TAG + 2,
+    E_ASSERTFAILD = ARKX_TEST_TAG + 3,
+    E_DESTROYED = ARKX_TEST_TAG + 4,
+    E_NOTSUPPORT = ARKX_TEST_TAG + 5,
 };
 
 enum CommonErrCode {
@@ -53,10 +53,10 @@ enum CommonErrCode {
 
 static inline std::unordered_map<int, std::pair<int32_t, std::string>> errCodeTable {
     { E_PARAMS, { E_PARAMS, "The input parameter is invalid" } },
-    { ARKUI_TEST_TAG + E_AWAIT, { ARKUI_TEST_TAG + E_AWAIT, "The async function was not called with await" } },
-    { ARKUI_TEST_TAG + E_ASSERTFAILD, { ARKUI_TEST_TAG + E_ASSERTFAILD, "The assertion is failed" } },
-    { ARKUI_TEST_TAG + E_DESTROYED, { ARKUI_TEST_TAG + E_DESTROYED, "The window is invisible or destroyed" } },
-    { ARKUI_TEST_TAG + E_NOTSUPPORT, { ARKUI_TEST_TAG + E_NOTSUPPORT, "The action is not supported on this window" } },
+    { ARKX_TEST_TAG + E_AWAIT, { ARKX_TEST_TAG + E_AWAIT, "The async function was not called with await" } },
+    { ARKX_TEST_TAG + E_ASSERTFAILD, { ARKX_TEST_TAG + E_ASSERTFAILD, "The assertion is failed" } },
+    { ARKX_TEST_TAG + E_DESTROYED, { ARKX_TEST_TAG + E_DESTROYED, "The window is invisible or destroyed" } },
+    { ARKX_TEST_TAG + E_NOTSUPPORT, { ARKX_TEST_TAG + E_NOTSUPPORT, "The action is not supported on this window" } },
 };
 
 class NError {

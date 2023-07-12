@@ -14,6 +14,7 @@
  */
 
 #include "driver_napi_libn.h"
+
 #include "../core/driver.h"
 
 namespace OHOS::UiTest {
@@ -22,10 +23,11 @@ using namespace std;
 using namespace LibN;
 static napi_ref OnRef = nullptr;
 
-class ListComponent {
+class ArgsCls {
 public:
     unique_ptr<Component> component = nullptr;
     vector<unique_ptr<Component>> components;
+    unique_ptr<bool> isCommonBool;
 };
 
 OnNExporter::OnNExporter(napi_env env, napi_value exports) : NExporter(env, exports) {}
@@ -146,28 +148,28 @@ static napi_value ExecImpl(napi_env env, napi_value thisVar, int32_t type, bool 
     if (on) {
         HILOG_INFO("Uitest:: ExecImpl type: %{public}d", type);
         switch (type) {
-            case OnType::CLICKABLE:
+            case CommonType::CLICKABLE:
                 on->Clickable(b);
                 break;
-            case OnType::LONGCLICKABLE:
+            case CommonType::LONGCLICKABLE:
                 on->LongClickable(b);
                 break;
-            case OnType::SCROLLABLE:
+            case CommonType::SCROLLABLE:
                 on->Scrollable(b);
                 break;
-            case OnType::ENABLED:
+            case CommonType::ENABLED:
                 on->Enabled(b);
                 break;
-            case OnType::FOCUSED:
+            case CommonType::FOCUSED:
                 on->Focused(b);
                 break;
-            case OnType::SELECTED:
+            case CommonType::SELECTED:
                 on->Selected(b);
                 break;
-            case OnType::CHECKED:
+            case CommonType::CHECKED:
                 on->Checked(b);
                 break;
-            case OnType::CHECKABLE:
+            case CommonType::CHECKABLE:
                 on->Checkable(b);
                 break;
             default:
@@ -188,7 +190,21 @@ static napi_value OnTemplate(napi_env env, napi_callback_info info, int32_t type
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
     }
-    bool b_ = true;
+    bool b_;
+    switch (type) {
+        case CommonType::CLICKABLE:
+        case CommonType::LONGCLICKABLE:
+        case CommonType::SCROLLABLE:
+        case CommonType::ENABLED:
+        case CommonType::FOCUSED:
+        case CommonType::SELECTED:
+            b_ = true;
+            break;
+        case CommonType::CHECKED:
+        case CommonType::CHECKABLE:
+            b_ = false;
+            break;
+    }
     if (funcArg.GetArgc() == NARG_CNT::ONE) {
         auto [succ, b] = NVal(env, funcArg[NARG_POS::FIRST]).ToBool();
         if (!succ) {
@@ -204,42 +220,42 @@ static napi_value OnTemplate(napi_env env, napi_callback_info info, int32_t type
 
 napi_value OnNExporter::Clickable(napi_env env, napi_callback_info info)
 {
-    return OnTemplate(env, info, OnType::CLICKABLE);
+    return OnTemplate(env, info, CommonType::CLICKABLE);
 }
 
 napi_value OnNExporter::LongClickable(napi_env env, napi_callback_info info)
 {
-    return OnTemplate(env, info, OnType::LONGCLICKABLE);
+    return OnTemplate(env, info, CommonType::LONGCLICKABLE);
 }
 
 napi_value OnNExporter::Scrollable(napi_env env, napi_callback_info info)
 {
-    return OnTemplate(env, info, OnType::SCROLLABLE);
+    return OnTemplate(env, info, CommonType::SCROLLABLE);
 }
 
 napi_value OnNExporter::Enabled(napi_env env, napi_callback_info info)
 {
-    return OnTemplate(env, info, OnType::ENABLED);
+    return OnTemplate(env, info, CommonType::ENABLED);
 }
 
 napi_value OnNExporter::Focused(napi_env env, napi_callback_info info)
 {
-    return OnTemplate(env, info, OnType::FOCUSED);
+    return OnTemplate(env, info, CommonType::FOCUSED);
 }
 
 napi_value OnNExporter::Selected(napi_env env, napi_callback_info info)
 {
-    return OnTemplate(env, info, OnType::SELECTED);
+    return OnTemplate(env, info, CommonType::SELECTED);
 }
 
 napi_value OnNExporter::Checked(napi_env env, napi_callback_info info)
 {
-    return OnTemplate(env, info, OnType::CHECKED);
+    return OnTemplate(env, info, CommonType::CHECKED);
 }
 
 napi_value OnNExporter::Checkable(napi_env env, napi_callback_info info)
 {
-    return OnTemplate(env, info, OnType::CHECKABLE);
+    return OnTemplate(env, info, CommonType::CHECKABLE);
 }
 
 static napi_value OnInitializer(napi_env env, napi_callback_info info)
@@ -531,12 +547,73 @@ napi_value ComponentNExporter::GetType(napi_env env, napi_callback_info info)
     return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
 }
 
-napi_value ComponentNExporter::IsClickable(napi_env env, napi_callback_info info)
+static string ProcedureName(int32_t type)
 {
-    HILOG_INFO("IsClickable begin");
+    HILOG_INFO("ProcedureName begin");
+    switch (type) {
+        HILOG_INFO("ProcedureName type: %{public}d", type);
+        case CommonType::CLICKABLE:
+            return "IsClickable";
+        case CommonType::LONGCLICKABLE:
+            return "IsLongClickable";
+        case CommonType::SCROLLABLE:
+            return "IsScrollable";
+        case CommonType::ENABLED:
+            return "IsEnabled";
+        case CommonType::FOCUSED:
+            return "IsFocused";
+        case CommonType::SELECTED:
+            return "IsSelected";
+        case CommonType::CHECKED:
+            return "IsChecked";
+        case CommonType::CHECKABLE:
+            return "IsCheckable";
+    }
+    HILOG_INFO("ProcedureName end");
+}
+
+static void ComponentImpl(shared_ptr<ArgsCls> args, Component* component, int32_t type)
+{
+    HILOG_INFO("ComponentImpl begin");
+    switch (type) {
+        HILOG_INFO("ComponentImpl type: %{public}d", type);
+        case CommonType::CLICKABLE:
+            args->isCommonBool = move(component->IsClickable());
+            break;
+        case CommonType::LONGCLICKABLE:
+            args->isCommonBool = move(component->IsLongClickable());
+            break;
+        case CommonType::SCROLLABLE:
+            args->isCommonBool = move(component->IsScrollable());
+            break;
+        case CommonType::ENABLED:
+            args->isCommonBool = move(component->IsEnabled());
+            break;
+        case CommonType::FOCUSED:
+            args->isCommonBool = move(component->IsFocused());
+            break;
+        case CommonType::SELECTED:
+            args->isCommonBool = move(component->IsSelected());
+            break;
+        case CommonType::CHECKED:
+            args->isCommonBool = move(component->IsChecked());
+            break;
+        case CommonType::CHECKABLE:
+            args->isCommonBool = move(component->IsCheckable());
+            break;
+        default:
+            HILOG_ERROR("Cannot read type of ComponentImpl");
+            break;
+    }
+    HILOG_INFO("ComponentImpl end");
+}
+
+static napi_value ComponentTemplate(napi_env env, napi_callback_info info, int32_t type)
+{
+    HILOG_INFO("ComponentTemplate begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
-        HILOG_ERROR("IsClickable Number of arguments unmatched");
+        HILOG_ERROR("ComponentTemplate Number of arguments unmatched");
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
     }
@@ -548,267 +625,62 @@ napi_value ComponentNExporter::IsClickable(napi_env env, napi_callback_info info
         return nullptr;
     }
 
-    bool ret;
-    auto cbExec = [&ret, component]() -> NError {
-        ret = component->IsClickable();
+    auto args = std::make_shared<ArgsCls>();
+    auto cbExec = [args, component, tp = type]() -> NError {
+        ComponentImpl(args, component, tp);
         return NError(ERRNO_NOERR);
     };
 
-    auto cbCompl = [ret](napi_env env, NError err) -> NVal {
+    auto cbCompl = [args](napi_env env, NError err) -> NVal {
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
-        return NVal::CreateBool(env, ret);
+        return NVal::CreateBool(env, *(args->isCommonBool));
     };
 
     NVal thisVar(env, funcArg.GetThisVar());
-    string procedureName = "IsClickable";
-    return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
+    HILOG_INFO("ComponentTemplate end");
+    return NAsyncWorkPromise(env, thisVar).Schedule(ProcedureName(type), cbExec, cbCompl).val_;
+}
+
+napi_value ComponentNExporter::IsClickable(napi_env env, napi_callback_info info)
+{
+    return ComponentTemplate(env, info, CommonType::CLICKABLE);
 }
 
 napi_value ComponentNExporter::IsLongClickable(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("IsLongClickable begin");
-    NFuncArg funcArg(env, info);
-    if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
-        HILOG_ERROR("IsLongClickable Number of arguments unmatched");
-        NError(E_PARAMS).ThrowErr(env);
-        return nullptr;
-    }
-
-    auto component = NClass::GetEntityOf<Component>(env, funcArg.GetThisVar());
-    if (!component) {
-        HILOG_ERROR("Cannot get entity of component");
-        NError(E_DESTROYED).ThrowErr(env);
-        return nullptr;
-    }
-
-    bool ret;
-    auto cbExec = [&ret, component]() -> NError {
-        ret = component->IsLongClickable();
-        return NError(ERRNO_NOERR);
-    };
-
-    auto cbCompl = [ret](napi_env env, NError err) -> NVal {
-        if (err) {
-            return { env, err.GetNapiErr(env) };
-        }
-        return NVal::CreateBool(env, ret);
-    };
-
-    NVal thisVar(env, funcArg.GetThisVar());
-    string procedureName = "IsLongClickable";
-    return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
+    return ComponentTemplate(env, info, CommonType::LONGCLICKABLE);
 }
 
 napi_value ComponentNExporter::IsScrollable(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("IsScrollable begin");
-    NFuncArg funcArg(env, info);
-    if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
-        HILOG_ERROR("IsScrollable Number of arguments unmatched");
-        NError(E_PARAMS).ThrowErr(env);
-        return nullptr;
-    }
-
-    auto component = NClass::GetEntityOf<Component>(env, funcArg.GetThisVar());
-    if (!component) {
-        HILOG_ERROR("Cannot get entity of component");
-        NError(E_DESTROYED).ThrowErr(env);
-        return nullptr;
-    }
-
-    bool ret;
-    auto cbExec = [&ret, component]() -> NError {
-        ret = component->IsScrollable();
-        return NError(ERRNO_NOERR);
-    };
-
-    auto cbCompl = [ret](napi_env env, NError err) -> NVal {
-        if (err) {
-            return { env, err.GetNapiErr(env) };
-        }
-        return NVal::CreateBool(env, ret);
-    };
-
-    NVal thisVar(env, funcArg.GetThisVar());
-    string procedureName = "IsScrollable";
-    return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
+    return ComponentTemplate(env, info, CommonType::SCROLLABLE);
 }
 
 napi_value ComponentNExporter::IsEnabled(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("IsEnabled begin");
-    NFuncArg funcArg(env, info);
-    if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
-        HILOG_ERROR("IsEnabled Number of arguments unmatched");
-        NError(E_PARAMS).ThrowErr(env);
-        return nullptr;
-    }
-
-    auto component = NClass::GetEntityOf<Component>(env, funcArg.GetThisVar());
-    if (!component) {
-        HILOG_ERROR("Cannot get entity of component");
-        NError(E_DESTROYED).ThrowErr(env);
-        return nullptr;
-    }
-
-    bool ret;
-    auto cbExec = [&ret, component]() -> NError {
-        ret = component->IsEnabled();
-        return NError(ERRNO_NOERR);
-    };
-
-    auto cbCompl = [ret](napi_env env, NError err) -> NVal {
-        if (err) {
-            return { env, err.GetNapiErr(env) };
-        }
-        return NVal::CreateBool(env, ret);
-    };
-
-    NVal thisVar(env, funcArg.GetThisVar());
-    string procedureName = "IsEnabled";
-    return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
+    return ComponentTemplate(env, info, CommonType::ENABLED);
 }
 
 napi_value ComponentNExporter::IsFocused(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("IsFocused begin");
-    NFuncArg funcArg(env, info);
-    if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
-        HILOG_ERROR("IsFocused Number of arguments unmatched");
-        NError(E_PARAMS).ThrowErr(env);
-        return nullptr;
-    }
-
-    auto component = NClass::GetEntityOf<Component>(env, funcArg.GetThisVar());
-    if (!component) {
-        HILOG_ERROR("Cannot get entity of component");
-        NError(E_DESTROYED).ThrowErr(env);
-        return nullptr;
-    }
-
-    bool ret;
-    auto cbExec = [&ret, component]() -> NError {
-        ret = component->IsFocused();
-        return NError(ERRNO_NOERR);
-    };
-
-    auto cbCompl = [ret](napi_env env, NError err) -> NVal {
-        if (err) {
-            return { env, err.GetNapiErr(env) };
-        }
-        return NVal::CreateBool(env, ret);
-    };
-
-    NVal thisVar(env, funcArg.GetThisVar());
-    string procedureName = "IsFocused";
-    return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
+    return ComponentTemplate(env, info, CommonType::FOCUSED);
 }
 
 napi_value ComponentNExporter::IsSelected(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("IsSelected begin");
-    NFuncArg funcArg(env, info);
-    if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
-        HILOG_ERROR("IsSelected Number of arguments unmatched");
-        NError(E_PARAMS).ThrowErr(env);
-        return nullptr;
-    }
-
-    auto component = NClass::GetEntityOf<Component>(env, funcArg.GetThisVar());
-    if (!component) {
-        HILOG_ERROR("Cannot get entity of component");
-        NError(E_DESTROYED).ThrowErr(env);
-        return nullptr;
-    }
-
-    bool ret;
-    auto cbExec = [&ret, component]() -> NError {
-        ret = component->IsSelected();
-        return NError(ERRNO_NOERR);
-    };
-
-    auto cbCompl = [ret](napi_env env, NError err) -> NVal {
-        if (err) {
-            return { env, err.GetNapiErr(env) };
-        }
-        return NVal::CreateBool(env, ret);
-    };
-
-    NVal thisVar(env, funcArg.GetThisVar());
-    string procedureName = "IsSelected";
-    return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
+    return ComponentTemplate(env, info, CommonType::SELECTED);
 }
 
 napi_value ComponentNExporter::IsChecked(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("IsChecked begin");
-    NFuncArg funcArg(env, info);
-    if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
-        HILOG_ERROR("IsChecked Number of arguments unmatched");
-        NError(E_PARAMS).ThrowErr(env);
-        return nullptr;
-    }
-
-    auto component = NClass::GetEntityOf<Component>(env, funcArg.GetThisVar());
-    if (!component) {
-        HILOG_ERROR("Cannot get entity of component");
-        NError(E_DESTROYED).ThrowErr(env);
-        return nullptr;
-    }
-
-    bool ret;
-    auto cbExec = [&ret, component]() -> NError {
-        ret = component->IsChecked();
-        return NError(ERRNO_NOERR);
-    };
-
-    auto cbCompl = [ret](napi_env env, NError err) -> NVal {
-        if (err) {
-            return { env, err.GetNapiErr(env) };
-        }
-        return NVal::CreateBool(env, ret);
-    };
-
-    NVal thisVar(env, funcArg.GetThisVar());
-    string procedureName = "IsChecked";
-    return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
+    return ComponentTemplate(env, info, CommonType::CHECKED);
 }
 
 napi_value ComponentNExporter::IsCheckable(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("IsCheckable begin");
-    NFuncArg funcArg(env, info);
-    if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
-        HILOG_ERROR("IsCheckable Number of arguments unmatched");
-        NError(E_PARAMS).ThrowErr(env);
-        return nullptr;
-    }
-
-    auto component = NClass::GetEntityOf<Component>(env, funcArg.GetThisVar());
-    if (!component) {
-        HILOG_ERROR("Cannot get entity of component");
-        NError(E_DESTROYED).ThrowErr(env);
-        return nullptr;
-    }
-
-    bool ret;
-    auto cbExec = [&ret, component]() -> NError {
-        ret = component->IsCheckable();
-        return NError(ERRNO_NOERR);
-    };
-
-    auto cbCompl = [ret](napi_env env, NError err) -> NVal {
-        if (err) {
-            return { env, err.GetNapiErr(env) };
-        }
-        return NVal::CreateBool(env, ret);
-    };
-
-    NVal thisVar(env, funcArg.GetThisVar());
-    string procedureName = "IsCheckable";
-    return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
+    return ComponentTemplate(env, info, CommonType::CHECKABLE);
 }
 
 napi_value ComponentNExporter::InputText(napi_env env, napi_callback_info info)
@@ -1005,18 +877,28 @@ napi_value ComponentNExporter::ScrollSearch(napi_env env, napi_callback_info inf
     napi_ref ref = nullptr;
     napi_create_reference(env, jsComponent, 1, &ref);
 
-    auto cbExec = [on, component]() -> NError {
-        *component = component->ScrollSearch(*on);
+    auto arg = make_shared<ArgsCls>();
+    auto cbExec = [component, on, arg]() -> NError {
+        arg->component = move(component->ScrollSearch(*on));
         return NError(ERRNO_NOERR);
     };
 
-    auto cbCompl = [ref](napi_env env, NError err) -> NVal {
+    auto cbCompl = [ref, arg](napi_env env, NError err) -> NVal {
         if (err) {
-            return {env, err.GetNapiErr(env)};
+            return { env, err.GetNapiErr(env) };
         }
-        napi_value val = nullptr;
-        napi_get_reference_value(env, ref, &val);
-        return NVal (env, val);
+        napi_value jsComponent_ = nullptr;
+        napi_get_reference_value(env, ref, &jsComponent_);
+        if (!arg->component) {
+            HILOG_ERROR("Failed to component is nullptr.");
+            NError(E_AWAIT).ThrowErr(env);
+            return NVal::CreateUndefined(env);
+        }
+        if (!NClass::SetEntityFor<Component>(env, jsComponent_, move(arg->component))) {
+            NError(E_ASSERTFAILD).ThrowErr(env);
+        }
+        HILOG_INFO("ScrollSearch Success!");
+        return NVal(env, jsComponent_);
     };
 
     NVal thisVar(env, funcArg.GetThisVar());
@@ -1152,6 +1034,8 @@ napi_value DriverNExporter::DelayMs(napi_env env, napi_callback_info info)
     auto [resGetFirstArg, duration] = NVal(env, funcArg[NARG_POS::FIRST]).ToInt32();
     if (!resGetFirstArg) {
         HILOG_ERROR("Invalid duration");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
     }
 
     auto cbExec = [env = env, driver, dur = duration]() -> NError {
@@ -1161,7 +1045,7 @@ napi_value DriverNExporter::DelayMs(napi_env env, napi_callback_info info)
 
     auto cbCompl = [](napi_env env, NError err) -> NVal {
         if (err) {
-            return {env, err.GetNapiErr(env)};
+            return { env, err.GetNapiErr(env) };
         }
         HILOG_ERROR("DelayMs Success!");
         return NVal::CreateUndefined(env);
@@ -1195,7 +1079,7 @@ napi_value DriverNExporter::PressBack(napi_env env, napi_callback_info info)
 
     auto cbCompl = [](napi_env env, NError err) -> NVal {
         if (err) {
-            return {env, err.GetNapiErr(env)};
+            return { env, err.GetNapiErr(env) };
         }
         HILOG_ERROR("PressBack Success!");
         return NVal::CreateUndefined(env);
@@ -1235,7 +1119,7 @@ napi_value DriverNExporter::AssertComponentExist(napi_env env, napi_callback_inf
 
     auto cbCompl = [](napi_env env, NError err) -> NVal {
         if (err) {
-            return {env, err.GetNapiErr(env)};
+            return { env, err.GetNapiErr(env) };
         }
         HILOG_ERROR("AssertComponentExist Success!");
         return NVal::CreateUndefined(env);
@@ -1246,11 +1130,52 @@ napi_value DriverNExporter::AssertComponentExist(napi_env env, napi_callback_inf
     return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
 }
 
+static bool GetArg(napi_env env, napi_value thisValue, int number, ArgsInfo &argsInfo)
+{
+    auto [success, number_] = NVal(env, thisValue).ToInt32();
+    if(!success){
+        return false;
+    }
+    switch (number) {
+        case NARG_POS::FIRST:
+            argsInfo.startx = number_;
+            break;
+        case NARG_POS::SECOND:
+            argsInfo.starty = number_;
+            break;
+        case NARG_POS::THIRD:
+            argsInfo.endx = number_;
+            break;
+        case NARG_POS::FOURTH:
+            argsInfo.endy = number_;
+            break;
+        case NARG_POS::FIFTH:
+            argsInfo.speed = number_;
+            break;
+    }
+    return true;
+}
+
+static bool GetArgs(napi_env env, NFuncArg &funcArg, ArgsInfo &argsInfo)
+{
+    bool retFirst, retSecond, retThird, retFourth;
+    bool retFifth = true;
+    retFirst = GetArg(env, funcArg[NARG_POS::FIRST], NARG_POS::FIRST, argsInfo);
+    retSecond = GetArg(env, funcArg[NARG_POS::SECOND], NARG_POS::SECOND, argsInfo);
+    retThird = GetArg(env, funcArg[NARG_POS::THIRD], NARG_POS::THIRD, argsInfo);
+    retFourth = GetArg(env, funcArg[NARG_POS::FOURTH], NARG_POS::FOURTH, argsInfo);
+
+    if (funcArg.GetArgc() == NARG_CNT::FIVE) {
+        retFifth = GetArg(env, funcArg[NARG_POS::FIFTH], NARG_POS::FIFTH, argsInfo);
+    }
+    return retFirst && retSecond && retThird && retFourth && retFifth;
+}
+
 napi_value DriverNExporter::Swipe(napi_env env, napi_callback_info info)
 {
     HILOG_INFO("Swipe begin");
     NFuncArg funcArg(env, info);
-    if (!funcArg.InitArgs(NARG_CNT::FIVE)) {
+    if (!funcArg.InitArgs(NARG_CNT::FOUR, NARG_CNT::FIVE)) {
         HILOG_ERROR("Swipe Number of arguments unmatched");
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
@@ -1262,40 +1187,21 @@ napi_value DriverNExporter::Swipe(napi_env env, napi_callback_info info)
         return nullptr;
     }
 
-    auto [resGetFirstArg, startx] = NVal(env, funcArg[NARG_POS::FIRST]).ToInt32();
-    if (!resGetFirstArg) {
-        HILOG_ERROR("Invalid startx");
+    ArgsInfo argsInfo;
+    if (!GetArgs(env, funcArg, argsInfo)) {
+        HILOG_ERROR("Swipe Invalid arguments");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
     }
 
-    auto [resGetSecondArg, starty] = NVal(env, funcArg[NARG_POS::SECOND]).ToInt32();
-    if (!resGetSecondArg) {
-        HILOG_ERROR("Invalid starty");
-    }
-
-    auto [resGetThirdArg, endx] = NVal(env, funcArg[NARG_POS::THIRD]).ToInt32();
-    if (!resGetThirdArg) {
-        HILOG_ERROR("Invalid endx");
-    }
-
-    auto [resGetFourthArg, endy] = NVal(env, funcArg[NARG_POS::FOURTH]).ToInt32();
-    if (!resGetFourthArg) {
-        HILOG_ERROR("Invalid endy");
-    }
-
-    auto [resGetFifthArg, speed] = NVal(env, funcArg[NARG_POS::FIFTH]).ToInt32();
-    if (!resGetFifthArg) {
-        HILOG_ERROR("Invalid speed");
-    }
-
-    auto cbExec = [env = env, driver, startx = startx, starty = starty, endx = endx,
-                    endy = endy, speed = speed]() -> NError {
-        driver->Swipe(startx, starty, endx, endy, speed);
+    auto cbExec = [env = env, driver, &argsInfo]() -> NError {
+        driver->Swipe(argsInfo.startx, argsInfo.starty, argsInfo.endx, argsInfo.endy, argsInfo.speed);
         return NError(ERRNO_NOERR);
     };
 
     auto cbCompl = [](napi_env env, NError err) -> NVal {
         if (err) {
-            return {env, err.GetNapiErr(env)};
+            return { env, err.GetNapiErr(env) };
         }
         HILOG_INFO("Swipe Success!");
         return NVal::CreateUndefined(env);
@@ -1337,11 +1243,15 @@ napi_value DriverNExporter::Fling(napi_env env, napi_callback_info info)
     auto [resGetFirstArg, stepLen] = NVal(env, funcArg[NARG_POS::THIRD]).ToInt32();
     if (!resGetFirstArg) {
         HILOG_ERROR("Invalid x");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
     }
 
     auto [resGetSecondArg, speed] = NVal(env, funcArg[NARG_POS::FOURTH]).ToInt32();
     if (!resGetSecondArg) {
         HILOG_ERROR("Invalid y");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
     }
 
     auto cbExec = [env = env, driver, ptFrom = ptFrom, ptTo = ptTo, stepLen = stepLen, speed = speed]() -> NError {
@@ -1351,7 +1261,7 @@ napi_value DriverNExporter::Fling(napi_env env, napi_callback_info info)
 
     auto cbCompl = [](napi_env env, NError err) -> NVal {
         if (err) {
-            return {env, err.GetNapiErr(env)};
+            return { env, err.GetNapiErr(env) };
         }
         HILOG_ERROR("Fling Success!");
         return NVal::CreateUndefined(env);
@@ -1381,11 +1291,15 @@ napi_value DriverNExporter::Click(napi_env env, napi_callback_info info)
     auto [resGetFirstArg, x] = NVal(env, funcArg[NARG_POS::FIRST]).ToInt32();
     if (!resGetFirstArg) {
         HILOG_ERROR("Invalid x");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
     }
 
     auto [resGetSecondArg, y] = NVal(env, funcArg[NARG_POS::SECOND]).ToInt32();
     if (!resGetSecondArg) {
         HILOG_ERROR("Invalid y");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
     }
 
     auto cbExec = [driver, x = x, y = y]() -> NError {
@@ -1395,7 +1309,7 @@ napi_value DriverNExporter::Click(napi_env env, napi_callback_info info)
 
     auto cbCompl = [](napi_env env, NError err) -> NVal {
         if (err) {
-            return {env, err.GetNapiErr(env)};
+            return { env, err.GetNapiErr(env) };
         }
         HILOG_INFO("Click Success!");
         return NVal::CreateUndefined(env);
@@ -1425,11 +1339,15 @@ napi_value DriverNExporter::DoubleClick(napi_env env, napi_callback_info info)
     auto [resGetFirstArg, x] = NVal(env, funcArg[NARG_POS::FIRST]).ToInt32();
     if (!resGetFirstArg) {
         HILOG_ERROR("Invalid x");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
     }
 
     auto [resGetSecondArg, y] = NVal(env, funcArg[NARG_POS::SECOND]).ToInt32();
     if (!resGetSecondArg) {
         HILOG_ERROR("Invalid y");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
     }
 
     auto cbExec = [driver, x = x, y = y]() -> NError {
@@ -1439,7 +1357,7 @@ napi_value DriverNExporter::DoubleClick(napi_env env, napi_callback_info info)
 
     auto cbCompl = [](napi_env env, NError err) -> NVal {
         if (err) {
-            return {env, err.GetNapiErr(env)};
+            return { env, err.GetNapiErr(env) };
         }
         HILOG_INFO("DoubleClick Success!");
         return NVal::CreateUndefined(env);
@@ -1469,11 +1387,15 @@ napi_value DriverNExporter::LongClick(napi_env env, napi_callback_info info)
     auto [resGetFirstArg, x] = NVal(env, funcArg[NARG_POS::FIRST]).ToInt32();
     if (!resGetFirstArg) {
         HILOG_ERROR("Invalid x");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
     }
 
     auto [resGetSecondArg, y] = NVal(env, funcArg[NARG_POS::SECOND]).ToInt32();
     if (!resGetSecondArg) {
         HILOG_ERROR("Invalid y");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
     }
 
     auto cbExec = [driver, x = x, y = y]() -> NError {
@@ -1483,7 +1405,7 @@ napi_value DriverNExporter::LongClick(napi_env env, napi_callback_info info)
 
     auto cbCompl = [](napi_env env, NError err) -> NVal {
         if (err) {
-            return {env, err.GetNapiErr(env)};
+            return { env, err.GetNapiErr(env) };
         }
         HILOG_INFO("LongClick Success!");
         return NVal::CreateUndefined(env);
@@ -1524,7 +1446,7 @@ napi_value DriverNExporter::FindComponent(napi_env env, napi_callback_info info)
 
     napi_ref ref = nullptr;
     napi_create_reference(env, jsComponent, 1, &ref);
-    auto arg = make_shared<ListComponent>();
+    auto arg = make_shared<ArgsCls>();
     auto cbExec = [driver, on, arg]() -> NError {
         arg->component = move(driver->FindComponent(*on));
         return NError(ERRNO_NOERR);
@@ -1532,18 +1454,20 @@ napi_value DriverNExporter::FindComponent(napi_env env, napi_callback_info info)
 
     auto cbCompl = [ref, arg](napi_env env, NError err) -> NVal {
         if (err) {
-            return {env, err.GetNapiErr(env)};
+            return { env, err.GetNapiErr(env) };
         }
         napi_value jsComponent_ = nullptr;
         napi_get_reference_value(env, ref, &jsComponent_);
         if (!arg->component) {
+            HILOG_ERROR("Failed to component is nullptr.");
             NError(E_AWAIT).ThrowErr(env);
+            return NVal::CreateUndefined(env);
         }
         if (!NClass::SetEntityFor<Component>(env, jsComponent_, move(arg->component))) {
             NError(E_ASSERTFAILD).ThrowErr(env);
         }
         HILOG_INFO("FindComponent Success!");
-        return NVal (env, jsComponent_);
+        return NVal(env, jsComponent_);
     };
 
     NVal thisVar(env, funcArg.GetThisVar());
@@ -1572,7 +1496,7 @@ napi_value DriverNExporter::FindComponents(napi_env env, napi_callback_info info
         HILOG_ERROR("Cannot get entity of driver");
         return nullptr;
     }
-    auto args = make_shared<ListComponent>();
+    auto args = make_shared<ArgsCls>();
     if (!args) {
         HILOG_ERROR("Failed to request heap memory.");
         NError(ENOMEM).ThrowErr(env);
@@ -1586,7 +1510,7 @@ napi_value DriverNExporter::FindComponents(napi_env env, napi_callback_info info
 
     auto cbCompl = [args](napi_env env, NError err) -> NVal {
         if (err) {
-            return {env, err.GetNapiErr(env)};
+            return { env, err.GetNapiErr(env) };
         }
         HILOG_INFO("FindComponents Success!");
         return NVal::CreateArray(env, move(args->components), ComponentNExporter::COMPONENT_CLASS_NAME);

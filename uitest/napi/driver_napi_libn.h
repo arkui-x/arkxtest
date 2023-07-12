@@ -17,20 +17,18 @@
 #define DRIVER_NAPI_LIBN_H
 
 #include <string>
+
 #include "napi_libn_fwk.h"
 #include "utils/log.h"
 
 namespace OHOS::UiTest {
 
-enum OnType : int32_t {
-    CLICKABLE = 1,
-    LONGCLICKABLE,
-    SCROLLABLE,
-    ENABLED,
-    FOCUSED,
-    SELECTED,
-    CHECKED,
-    CHECKABLE
+struct ArgsInfo {
+    int32_t startx = 0;
+    int32_t starty = 0;
+    int32_t endx = 0;
+    int32_t endy = 0;
+    int32_t speed = 0;
 };
 
 class OnNExporter : public LibN::NExporter {
@@ -52,21 +50,19 @@ public:
     static napi_value Checked(napi_env env, napi_callback_info info);
     static napi_value Checkable(napi_env env, napi_callback_info info);
 
-    static constexpr const char *ON_CLASS_NAME_ = "ON";
-    static constexpr const char *ON_CLASS_NAME = "On";
-    static constexpr const char *FUNCTION_TEXT = "text";
-    static constexpr const char *FUNCTION_ID = "id";
-    static constexpr const char *FUNCTION_TYPE = "type";
-    static constexpr const char *FUNCTION_CLICKABLE = "clickable";
-    static constexpr const char *FUNCTION_LONG_CLICKABLE = "longClickable";
-    static constexpr const char *FUNCTION_SCROLLABLE = "scrollable";
-    static constexpr const char *FUNCTION_ENABLED = "enabled";
-    static constexpr const char *FUNCTION_FOCUSED = "focused";
-    static constexpr const char *FUNCTION_SELECTED = "selected";
-    static constexpr const char *FUNCTION_CHECKED = "checked";
-    static constexpr const char *FUNCTION_CHECKABLE = "checkable";
-    static constexpr const char *FUNCTION_IS_BEFORE = "isBefore";
-    static constexpr const char *FUNCTION_IS_AFTER = "isAfter";
+    static constexpr const char* ON_CLASS_NAME_ = "ON";
+    static constexpr const char* ON_CLASS_NAME = "On";
+    static constexpr const char* FUNCTION_TEXT = "text";
+    static constexpr const char* FUNCTION_ID = "id";
+    static constexpr const char* FUNCTION_TYPE = "type";
+    static constexpr const char* FUNCTION_CLICKABLE = "clickable";
+    static constexpr const char* FUNCTION_LONG_CLICKABLE = "longClickable";
+    static constexpr const char* FUNCTION_SCROLLABLE = "scrollable";
+    static constexpr const char* FUNCTION_ENABLED = "enabled";
+    static constexpr const char* FUNCTION_FOCUSED = "focused";
+    static constexpr const char* FUNCTION_SELECTED = "selected";
+    static constexpr const char* FUNCTION_CHECKED = "checked";
+    static constexpr const char* FUNCTION_CHECKABLE = "checkable";
 };
 
 class ComponentNExporter : public LibN::NExporter {
@@ -97,31 +93,27 @@ public:
     static napi_value ScrollSearch(napi_env env, napi_callback_info info);
     static napi_value GetBoundsCenter(napi_env env, napi_callback_info info);
 
-    static constexpr const char *COMPONENT_CLASS_NAME = "Component";
-    static constexpr const char *FUNCTION_CLICK = "click";
-    static constexpr const char *FUNCTION_DOUBLE_CLICK = "doubleClick";
-    static constexpr const char *FUNCTION_LONG_CLICK = "longClick";
-    static constexpr const char *FUNCTION_GET_ID = "getId";
-    static constexpr const char *FUNCTION_GET_TEXT = "getText";
-    static constexpr const char *FUNCTION_GET_TYPE = "getType";
-    static constexpr const char *FUNCTION_IS_CLICKABLE = "isClickable";
-    static constexpr const char *FUNCTION_IS_LONG_CLICKABLE = "isLongClickable";
-    static constexpr const char *FUNCTION_IS_SCROLLABLE = "isScrollable";
-    static constexpr const char *FUNCTION_IS_ENABLED = "isEnabled";
-    static constexpr const char *FUNCTION_IS_FOCUSED = "isFocused";
-    static constexpr const char *FUNCTION_IS_SELECTED = "isSelected";
-    static constexpr const char *FUNCTION_IS_CHECKED = "isChecked";
-    static constexpr const char *FUNCTION_IS_CHECKABLE = "isCheckable";
-    static constexpr const char *FUNCTION_INPUT_TEXT = "inputText";
-    static constexpr const char *FUNCTION_CLEAR_TEXT = "clearText";
-    static constexpr const char *FUNCTION_SCROLL_TO_TOP = "scrollToTop";
-    static constexpr const char *FUNCTION_SCROLL_TO_BOTTOM = "scrollToBottom";
-    static constexpr const char *FUNCTION_SCROLL_SEARCH = "scrollSearch";
-    static constexpr const char *FUNCTION_GET_BOUNDS = "getBounds";
-    static constexpr const char *FUNCTION_GET_BOUNDS_CENTER = "getBoundsCenter";
-    static constexpr const char *FUNCTION_DRAG_TO = "dragTo";
-    static constexpr const char *FUNCTION_PINCH_OUT = "pinchOut";
-    static constexpr const char *FUNCTION_PINCH_IN = "pinchIn";
+    static constexpr const char* COMPONENT_CLASS_NAME = "Component";
+    static constexpr const char* FUNCTION_CLICK = "click";
+    static constexpr const char* FUNCTION_DOUBLE_CLICK = "doubleClick";
+    static constexpr const char* FUNCTION_LONG_CLICK = "longClick";
+    static constexpr const char* FUNCTION_GET_ID = "getId";
+    static constexpr const char* FUNCTION_GET_TEXT = "getText";
+    static constexpr const char* FUNCTION_GET_TYPE = "getType";
+    static constexpr const char* FUNCTION_IS_CLICKABLE = "isClickable";
+    static constexpr const char* FUNCTION_IS_LONG_CLICKABLE = "isLongClickable";
+    static constexpr const char* FUNCTION_IS_SCROLLABLE = "isScrollable";
+    static constexpr const char* FUNCTION_IS_ENABLED = "isEnabled";
+    static constexpr const char* FUNCTION_IS_FOCUSED = "isFocused";
+    static constexpr const char* FUNCTION_IS_SELECTED = "isSelected";
+    static constexpr const char* FUNCTION_IS_CHECKED = "isChecked";
+    static constexpr const char* FUNCTION_IS_CHECKABLE = "isCheckable";
+    static constexpr const char* FUNCTION_INPUT_TEXT = "inputText";
+    static constexpr const char* FUNCTION_CLEAR_TEXT = "clearText";
+    static constexpr const char* FUNCTION_SCROLL_TO_TOP = "scrollToTop";
+    static constexpr const char* FUNCTION_SCROLL_TO_BOTTOM = "scrollToBottom";
+    static constexpr const char* FUNCTION_SCROLL_SEARCH = "scrollSearch";
+    static constexpr const char* FUNCTION_GET_BOUNDS_CENTER = "getBoundsCenter";
 };
 
 class DriverNExporter final : public LibN::NExporter {
@@ -144,18 +136,18 @@ public:
     static napi_value Swipe(napi_env env, napi_callback_info info);
     static napi_value Fling(napi_env env, napi_callback_info info);
 
-    static constexpr const char *DRIVER_CLASS_NAME = "Driver";
-    static constexpr const char *FUNCTION_CREATE = "create";
-    static constexpr const char *FUNCTION_DELAY_MS = "delayMs";
-    static constexpr const char *FUNCTION_PRESS_BACK = "pressBack";
-    static constexpr const char *FUNCTION_ASSERT_COMPONENT = "assertComponentExist";
-    static constexpr const char *FUNCTION_FIND_COMPONENT = "findComponent";
-    static constexpr const char *FUNCTION_FIND_COMPONENTS = "findComponents";
-    static constexpr const char *FUNCTION_CLICK = "click";
-    static constexpr const char *FUNCTION_DOUBLE_CLICK = "doubleClick";
-    static constexpr const char *FUNCTION_LONG_CLICK = "longClick";
-    static constexpr const char *FUNCTION_SWIPE = "swipe";
-    static constexpr const char *FUNCTION_FLING = "fling";
+    static constexpr const char* DRIVER_CLASS_NAME = "Driver";
+    static constexpr const char* FUNCTION_CREATE = "create";
+    static constexpr const char* FUNCTION_DELAY_MS = "delayMs";
+    static constexpr const char* FUNCTION_PRESS_BACK = "pressBack";
+    static constexpr const char* FUNCTION_ASSERT_COMPONENT = "assertComponentExist";
+    static constexpr const char* FUNCTION_FIND_COMPONENT = "findComponent";
+    static constexpr const char* FUNCTION_FIND_COMPONENTS = "findComponents";
+    static constexpr const char* FUNCTION_CLICK = "click";
+    static constexpr const char* FUNCTION_DOUBLE_CLICK = "doubleClick";
+    static constexpr const char* FUNCTION_LONG_CLICK = "longClick";
+    static constexpr const char* FUNCTION_SWIPE = "swipe";
+    static constexpr const char* FUNCTION_FLING = "fling";
 };
 
 } // namespace OHOS::UiTest
