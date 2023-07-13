@@ -42,8 +42,23 @@ ohos_source_set("uitest_core_static") {
     "$libn_dirs/include/n_async",
   ]
 
+  include_dirs += [
+    "/core",
+    "${root_path}/napi",
+  ]
+
   sources = libn_src
-  configs = [ ":uitest_common_configs" ]
+  configs = [
+    ":uitest_common_configs",
+    "//foundation/arkui/ace_engine:ace_config",
+    "//foundation/appframework/ability/ability_runtime/cross_platform/interfaces/kits/native/appkit:appkit_native_config",
+    "//foundation/appframework/ability/ability_runtime/cross_platform/interfaces/kits/native/ability:abilitykit_native_config",
+  ]
+  sources += [
+    "${root_path}/core/driver.cpp",
+    "${root_path}/napi/driver_napi_libn.cpp",
+    "${root_path}/napi/uitest_n_exporter.cpp",
+  ]
 
   deps = [ "$plugins_root/libs/napi:napi_${target_os}" ]
 
