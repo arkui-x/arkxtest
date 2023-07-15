@@ -19,8 +19,8 @@
 #include <vector>
 
 #include "ability_delegator/ability_delegator_registry.h"
-#include "foundation/appframework/arkui/uicontent/ui_content.h"
-#include "foundation/arkui/ace_engine/frameworks/core/accessibility/accessibility_node.h"
+#include "accessibility_node.h"
+#include "ui_content.h"
 #include "utils/log.h"
 
 #include "core/event/touch_event.h"
@@ -34,7 +34,8 @@ int64_t getCurrentTimeMillis()
     return std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
 }
 
-inline Ace::TimeStamp TimeStamp(int64_t currentTimeMillis){
+inline Ace::TimeStamp TimeStamp(int64_t currentTimeMillis)
+{
     return Ace::TimeStamp(std::chrono::milliseconds(currentTimeMillis));
 }
 
@@ -50,7 +51,7 @@ Ace::Platform::UIContent* GetUIContent()
     return delegator->GetUIContent(topAbility->instanceId_);
 }
 
-bool Driver::AssertComponentExist(On& on)
+bool Driver::AssertComponentExist(const On& on)
 {
     HILOG_INFO("Driver::AssertComponentExist");
     auto component = make_unique<Component>();
@@ -68,21 +69,10 @@ void Driver::PressBack()
 
 void Driver::DelayMs(int dur)
 {
-    HILOG_INFO("Driver::DelayMs duration=%d", dur);
+    HILOG_DEBUG("Driver::DelayMs duration=%d", dur);
     if (dur > 0) {
         this_thread::sleep_for(chrono::milliseconds(dur));
     }
-}
-
-static void PackagingEvent(Ace::TouchEvent& event, Ace::TimeStamp time, Ace::TouchType type, int x, int y)
-{
-    event.time = time;
-    event.type = type;
-    event.x = x;
-    event.y = y;
-    event.screenX = x;
-    event.screenY = y;
-    event = event.UpdatePointers();
 }
 
 static void PackagingEvent(Ace::TouchEvent& event, Ace::TimeStamp time, Ace::TouchType type, const Point& point)
@@ -98,17 +88,17 @@ static void PackagingEvent(Ace::TouchEvent& event, Ace::TimeStamp time, Ace::Tou
 
 void Driver::Click(int x, int y)
 {
-    HILOG_INFO("Driver::Click x=%d, y=%d", x, y);
+    HILOG_DEBUG("Driver::Click x=%d, y=%d", x, y);
     std::vector<Ace::TouchEvent> clickEvents;
     int64_t currentTimeMillis = getCurrentTimeMillis();
 
     Ace::TouchEvent downEvent;
-    PackagingEvent(downEvent, TimeStamp(currentTimeMillis), Ace::TouchType::DOWN, x, y);
+    PackagingEvent(downEvent, TimeStamp(currentTimeMillis), Ace::TouchType::DOWN, { x, y });
     clickEvents.push_back(downEvent);
 
     Ace::TouchEvent upEvent;
     UiOpArgs options;
-    PackagingEvent(upEvent,TimeStamp(currentTimeMillis + options.clickHoldMs_), Ace::TouchType::UP, x, y);
+    PackagingEvent(upEvent, TimeStamp(currentTimeMillis + options.clickHoldMs_), Ace::TouchType::UP, { x, y });
     clickEvents.push_back(upEvent);
 
     auto uiContent = GetUIContent();
@@ -119,18 +109,18 @@ void Driver::Click(int x, int y)
 
 void Driver::DoubleClick(int x, int y)
 {
-    HILOG_INFO("Driver::Click x=%d, y=%d", x, y);
+    HILOG_DEBUG("Driver::Click x=%d, y=%d", x, y);
     std::vector<Ace::TouchEvent> clickEvents;
     int64_t currentTimeMillis = getCurrentTimeMillis();
 
     for (int i = 0; i < 2; i++) {
         Ace::TouchEvent downEvent;
-        PackagingEvent(downEvent, TimeStamp(currentTimeMillis), Ace::TouchType::DOWN, x, y);
+        PackagingEvent(downEvent, TimeStamp(currentTimeMillis), Ace::TouchType::DOWN, { x, y });
         clickEvents.push_back(downEvent);
 
         Ace::TouchEvent upEvent;
         UiOpArgs options;
-        PackagingEvent(upEvent, TimeStamp(currentTimeMillis + options.clickHoldMs_), Ace::TouchType::DOWN, x, y);
+        PackagingEvent(upEvent, TimeStamp(currentTimeMillis + options.clickHoldMs_), Ace::TouchType::DOWN, { x, y });
         clickEvents.push_back(upEvent);
 
         currentTimeMillis += options.clickHoldMs_;
@@ -144,12 +134,12 @@ void Driver::DoubleClick(int x, int y)
 
 void Driver::LongClick(int x, int y)
 {
-    HILOG_INFO("Driver::LongClick x=%d, y=%d", x, y);
+    HILOG_DEBUG("Driver::LongClick x=%d, y=%d", x, y);
     std::vector<Ace::TouchEvent> clickEvents;
     int64_t currentTimeMillis = getCurrentTimeMillis();
 
     Ace::TouchEvent downEvent;
-    PackagingEvent(downEvent, TimeStamp(currentTimeMillis), Ace::TouchType::DOWN, x, y);
+    PackagingEvent(downEvent, TimeStamp(currentTimeMillis), Ace::TouchType::DOWN, { x, y });
     clickEvents.push_back(downEvent);
 
     auto uiContent = GetUIContent();
@@ -165,7 +155,7 @@ void Driver::Swipe(int startx, int starty, int endx, int endy, int speed)
     int64_t currentTimeMillis = getCurrentTimeMillis();
 
     Ace::TouchEvent downEvent;
-    PackagingEvent(downEvent, TimeStamp(currentTimeMillis), Ace::TouchType::DOWN, startx, starty);
+    PackagingEvent(downEvent, TimeStamp(currentTimeMillis), Ace::TouchType::DOWN, { startx, starty });
     swipeEvents.push_back(downEvent);
 
     UiOpArgs options;
@@ -193,12 +183,13 @@ void Driver::Swipe(int startx, int starty, int endx, int endy, int speed)
 
         Ace::TouchEvent moveEvent;
         moveEvent = moveEvent.UpdatePointers();
-        PackagingEvent(moveEvent, TimeStamp(currentTimeMillis + timeOffsetMs), Ace::TouchType::MOVE, pointX, pointY);
+        PackagingEvent(moveEvent, TimeStamp(currentTimeMillis + timeOffsetMs),
+            Ace::TouchType::MOVE, { pointX, pointY });
         swipeEvents.push_back(moveEvent);
     }
 
     Ace::TouchEvent upEvent;
-    PackagingEvent(upEvent, TimeStamp(currentTimeMillis + timeCostMs), Ace::TouchType::UP, endx, endy);
+    PackagingEvent(upEvent, TimeStamp(currentTimeMillis + timeCostMs), Ace::TouchType::UP, { endx, endy });
     swipeEvents.push_back(upEvent);
 
     auto uiContent = GetUIContent();
@@ -206,7 +197,7 @@ void Driver::Swipe(int startx, int starty, int endx, int endy, int speed)
     uiContent->ProcessBasicEvent(swipeEvents);
 }
 
-void Driver::Fling(Point& from, Point& to, int stepLen, int speed)
+void Driver::Fling(const Point& from, const Point& to, int stepLen, int speed)
 {
     HILOG_DEBUG(
         "Driver::Fling from (%d, %d) to (%d, %d), stepLen:%d, speed:%d", from.x, from.y, to.x, to.y, stepLen, speed);
@@ -214,7 +205,7 @@ void Driver::Fling(Point& from, Point& to, int stepLen, int speed)
     int64_t currentTimeMillis = getCurrentTimeMillis();
 
     Ace::TouchEvent downEvent;
-    PackagingEvent(downEvent, TimeStamp(currentTimeMillis), Ace::TouchType::DOWN, from.x, from.y);
+    PackagingEvent(downEvent, TimeStamp(currentTimeMillis), Ace::TouchType::DOWN, from);
     flingEvents.push_back(downEvent);
 
     UiOpArgs options;
@@ -239,7 +230,8 @@ void Driver::Fling(Point& from, Point& to, int stepLen, int speed)
         const float pointY = from.y + (distanceY * step) / steps;
         const uint32_t timeOffsetMs = (timeCostMs * step) / steps;
         Ace::TouchEvent moveEvent;
-        PackagingEvent(downEvent, TimeStamp(currentTimeMillis + timeOffsetMs), Ace::TouchType::MOVE, pointX, pointY);
+        PackagingEvent(moveEvent, TimeStamp(currentTimeMillis + timeOffsetMs),
+            Ace::TouchType::MOVE, { pointX, pointY });
         flingEvents.push_back(moveEvent);
     }
 
@@ -358,7 +350,7 @@ unique_ptr<bool> Component::IsCheckable()
     return checkable;
 }
 
-void Component::InputText(const string &text)
+void Component::InputText(const string& text)
 {
     HILOG_INFO("Component::InputText");
     componentInfo_.text = text;
@@ -460,12 +452,12 @@ void Component::ScrollToBottom(int speed)
     }
 }
 
-void Component::SetComponentInfo(OHOS::Ace::Platform::ComponentInfo& com)
+void Component::SetComponentInfo(const OHOS::Ace::Platform::ComponentInfo& com)
 {
     componentInfo_ = com;
 }
 
-unique_ptr<Component> Component::ScrollSearch(On on)
+unique_ptr<Component> Component::ScrollSearch(const On& on)
 {
     HILOG_DEBUG("Component::ScrollSearch");
     auto component = make_unique<Component>();
@@ -524,177 +516,153 @@ Point Component::GetBoundsCenter()
     Point point;
     point.x = componentInfo_.left + componentInfo_.width / 2;
     point.y = componentInfo_.top + componentInfo_.height / 2;
-    HILOG_INFO("Component::GetBoundsCenter left:%f  top:%f width:%f height:%f  x:%d  y:%d", componentInfo_.left,
+    HILOG_DEBUG("Component::GetBoundsCenter left:%f  top:%f width:%f height:%f  x:%d  y:%d", componentInfo_.left,
         componentInfo_.top, componentInfo_.width, componentInfo_.height, point.x, point.y);
     return point;
 }
 
-On* On::Text(const string &text, MatchPattern pattern)
+On* On::Text(const string& text, MatchPattern pattern)
 {
     HILOG_INFO("On::Text");
     if (pattern >= MatchPattern::EQUALS && pattern <= MatchPattern::ENDS_WITH) {
-        this->text = text;
+        this->text = std::make_shared<string>(text);
         this->pattern_ = pattern;
-        this->commonType.push_back(CommonType::TEXT);
         HILOG_INFO("On::Text success");
     }
     return this;
 }
 
-On* On::Id(const string &id)
+On* On::Id(const string& id)
 {
     HILOG_INFO("On::Onid");
-    this->id = id;
-    this->commonType.push_back(CommonType::ID);
+    this->id = std::make_shared<string>(id);
     return this;
 }
 
-On* On::Type(const string &type)
+On* On::Type(const string& type)
 {
     HILOG_INFO("On::Ontype");
-    this->type = type;
-    this->commonType.push_back(CommonType::TYPE);
+    this->type = std::make_shared<string>(type);
     return this;
 }
 
 On* On::Enabled(bool enabled)
 {
     HILOG_INFO("On::Onenabled");
-    this->enabled = enabled;
-    this->commonType.push_back(CommonType::ENABLED);
+    this->enabled = std::make_shared<bool>(enabled);
     return this;
 }
 
 On* On::Focused(bool focused)
 {
     HILOG_INFO("Ons::Onfocused");
-    this->focused = focused;
-    this->commonType.push_back(CommonType::FOCUSED);
+    this->focused = std::make_shared<bool>(focused);
     return this;
 }
 
 On* On::Selected(bool selected)
 {
     HILOG_INFO("Driver::Onselected");
-    this->selected = selected;
-    this->commonType.push_back(CommonType::SELECTED);
+    this->selected = std::make_shared<bool>(selected);
     return this;
 }
 
 On* On::Clickable(bool clickable)
 {
     HILOG_INFO("Driver::Onclickable");
-    this->clickable = clickable;
-    this->commonType.push_back(CommonType::CLICKABLE);
+    this->clickable = std::make_shared<bool>(clickable);
     return this;
 }
 
 On* On::LongClickable(bool longClickable)
 {
     HILOG_INFO("Driver::OnlongClickable");
-    this->longClickable = longClickable;
-    this->commonType.push_back(CommonType::LONGCLICKABLE);
+    this->longClickable = std::make_shared<bool>(longClickable);
     return this;
 }
 
 On* On::Scrollable(bool scrollable)
 {
     HILOG_INFO("Driver::Onscrollable");
-    this->scrollable = scrollable;
-    this->commonType.push_back(CommonType::SCROLLABLE);
+    this->scrollable = std::make_shared<bool>(scrollable);
     return this;
 }
 
 On* On::Checkable(bool checkable)
 {
     HILOG_INFO("Driver::Oncheckable");
-    this->checkable = checkable;
-    this->commonType.push_back(CommonType::CHECKABLE);
+    this->checkable = std::make_shared<bool>(checkable);
     return this;
 }
 
 On* On::Checked(bool checked)
 {
     HILOG_INFO("Driver::Onchecked");
-    this->checked = checked;
-    this->commonType.push_back(CommonType::CHECKED);
+    this->checked = std::make_shared<bool>(checked);
     return this;
 }
 
-bool IsEqual(OHOS::Ace::Platform::ComponentInfo& component, On& on)
+bool On::CompareText(const string& text) const
 {
-    if (on.commonType.empty()) {
-        HILOG_INFO("on is empty");
-        return false;
+    if (this->pattern_ == MatchPattern::EQUALS) {
+        return text == *this->text;
+    } else if (this->pattern_ == MatchPattern::CONTAINS) {
+        return text.find(*this->text) != string::npos;
+    } else if (this->pattern_ == MatchPattern::STARTS_WITH) {
+        return text.find(*this->text) == 0;
+    } else if (this->pattern_ == MatchPattern::ENDS_WITH) {
+        return (text.find(*this->text) == (text.length() - this->text->length()));
     }
-    for (auto iter = on.commonType.begin(); iter != on.commonType.end(); ++iter) {
-        switch (*iter) {
-            case CommonType::ID:
-                if (on.id != component.compid)
-                    return false;
-                break;
-            case CommonType::TEXT:
-                switch(on.pattern_) {
-                    case MatchPattern::EQUALS:
-                        return component.text == on.text;
-                    case MatchPattern::CONTAINS:
-                        return component.text.find(on.text) != string::npos;
-                    case MatchPattern::STARTS_WITH:
-                        return component.text.find(on.text) == 0;
-                    case MatchPattern::ENDS_WITH:
-                        return (component.text.find(on.text) == (component.text.length() - on.text.length()));
-                    default:
-                        break;
-                }
-                break;
-            case CommonType::TYPE:
-                if (on.type != component.type)
-                    return false;
-                break;
-            case CommonType::ENABLED:
-                if (on.enabled != component.enabled)
-                    return false;
-                break;
-            case CommonType::FOCUSED:
-                if (on.focused != component.focused)
-                    return false;
-                break;
-            case CommonType::SELECTED:
-                if (on.selected != component.selected)
-                    return false;
-                break;
-            case CommonType::CLICKABLE:
-                if (on.clickable != component.clickable)
-                    return false;
-                break;
-            case CommonType::LONGCLICKABLE:
-                if (on.longClickable != component.longClickable)
-                    return false;
-                break;
-            case CommonType::SCROLLABLE:
-                if (on.scrollable != component.scrollable)
-                    return false;
-                break;
-            case CommonType::CHECKED:
-                if (on.checked != component.checked)
-                    return false;
-                break;
-            case CommonType::CHECKABLE:
-                if (on.checkable != component.checkable)
-                    return false;
-                break;
-            default:
-                HILOG_INFO("is not find");
-                break;
-        }
-    }
-    HILOG_INFO("IsEqual::IsEqual end");
     return false;
 }
 
-void GetComponentvalue(OHOS::Ace::Platform::ComponentInfo& component, On& on, OHOS::Ace::Platform::ComponentInfo& ret)
+bool operator == (const On& on, const OHOS::Ace::Platform::ComponentInfo& info)
 {
-    if (IsEqual(component, on)) {
+    if (!on.id && !on.text && !on.type && !on.clickable && !on.longClickable && !on.scrollable && !on.enabled &&
+        !on.focused && !on.selected && !on.checked && !on.checkable) {
+        return false;
+    }
+    bool res = true;
+    if (on.id) {
+        res = *on.id == info.compid && res;
+    }
+    if (on.text) {
+        res = on.CompareText(info.text) && res;
+    }
+    if (on.type) {
+        res = *on.type == info.type && res;
+    }
+    if (on.clickable) {
+        res = *on.clickable == info.clickable && res;
+    }
+    if (on.longClickable) {
+        res = *on.longClickable == info.longClickable && res;
+    }
+    if (on.scrollable) {
+        res = *on.scrollable == info.scrollable && res;
+    }
+    if (on.enabled) {
+        res = *on.enabled == info.enabled && res;
+    }
+    if (on.focused) {
+        res = *on.focused == info.focused && res;
+    }
+    if (on.selected) {
+        res = *on.selected == info.selected && res;
+    }
+    if (on.checked) {
+        res = *on.checked == info.checked && res;
+    }
+    if (on.checkable) {
+        res = *on.checkable == info.checkable && res;
+    }
+    return res;
+}
+
+void GetComponentvalue(OHOS::Ace::Platform::ComponentInfo& component,
+    const On& on, OHOS::Ace::Platform::ComponentInfo& ret)
+{
+    if (on == component) {
         ret = component;
         HILOG_INFO("GetComponentvalue return");
         return;
@@ -705,13 +673,13 @@ void GetComponentvalue(OHOS::Ace::Platform::ComponentInfo& component, On& on, OH
     }
 }
 
-unique_ptr<Component> Driver::FindComponent(On on)
+unique_ptr<Component> Driver::FindComponent(const On& on)
 {
     HILOG_INFO("Driver::FindComponent begin");
     auto component = make_unique<Component>();
     OHOS::Ace::Platform::ComponentInfo info;
     auto uiContent = GetUIContent();
-    CHECK_NULL_RETURN(uiContent, component);
+    CHECK_NULL_RETURN(uiContent, nullptr);
     uiContent->GetAllComponents(0, info);
     HILOG_INFO("GetAllComponents ok");
     OHOS::Ace::Platform::ComponentInfo ret;
@@ -724,9 +692,10 @@ unique_ptr<Component> Driver::FindComponent(On on)
     return component;
 }
 
-void GetComponentvalues(OHOS::Ace::Platform::ComponentInfo& info, On& on, vector<unique_ptr<Component>>& components)
+void GetComponentvalues(OHOS::Ace::Platform::ComponentInfo& info, const On& on,
+    vector<unique_ptr<Component>>& components)
 {
-    if (IsEqual(info, on)) {
+    if (on == info) {
         auto component = make_unique<Component>();
         component->SetComponentInfo(info);
         components.push_back(move(component));
@@ -736,7 +705,7 @@ void GetComponentvalues(OHOS::Ace::Platform::ComponentInfo& info, On& on, vector
     }
 }
 
-vector<unique_ptr<Component>> Driver::FindComponents(On on)
+vector<unique_ptr<Component>> Driver::FindComponents(const On& on)
 {
     HILOG_INFO("Driver::FindComponents");
     vector<unique_ptr<Component>> components;

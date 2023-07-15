@@ -887,15 +887,15 @@ napi_value ComponentNExporter::ScrollSearch(napi_env env, napi_callback_info inf
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
-        napi_value jsComponent_ = nullptr;
-        napi_get_reference_value(env, ref, &jsComponent_);
         if (!arg->component) {
             HILOG_ERROR("Failed to component is nullptr.");
-            NError(E_AWAIT).ThrowErr(env);
             return NVal::CreateUndefined(env);
         }
+        napi_value jsComponent_ = nullptr;
+        napi_get_reference_value(env, ref, &jsComponent_);
         if (!NClass::SetEntityFor<Component>(env, jsComponent_, move(arg->component))) {
-            NError(E_ASSERTFAILD).ThrowErr(env);
+            HILOG_ERROR("Failed to set Component entity");
+            return { env, NError(E_PARAMS).GetNapiErr(env) };
         }
         HILOG_INFO("ScrollSearch Success!");
         return NVal(env, jsComponent_);
@@ -1236,24 +1236,14 @@ napi_value DriverNExporter::Fling(napi_env env, napi_callback_info info)
         HILOG_ERROR("Invalid objFrom");
         return nullptr;
     }
-    auto ptFrom = NClass::GetEntityOf<Point>(env, objFrom.val_);
-    if (!ptFrom) {
-        HILOG_ERROR("Cannot get entity of ptFrom");
-        NError(E_DESTROYED).ThrowErr(env);
-        return nullptr;
-    }
+    Point ptFrom = { std::get<1>(objFrom.GetProp("x").ToInt32()), std::get<1>(objFrom.GetProp("y").ToInt32()) };
 
     NVal objTo(env, funcArg[NARG_POS::SECOND]);
     if (!objTo.TypeIs(napi_object)) {
         HILOG_ERROR("Invalid objTo");
         return nullptr;
     }
-    auto ptTo = NClass::GetEntityOf<Point>(env, objTo.val_);
-    if (!ptTo) {
-        HILOG_ERROR("Cannot get entity of ptTo");
-        NError(E_DESTROYED).ThrowErr(env);
-        return nullptr;
-    }
+    Point ptTo = { std::get<1>(objTo.GetProp("x").ToInt32()), std::get<1>(objTo.GetProp("y").ToInt32()) };
 
     auto [resGetFirstArg, stepLen] = NVal(env, funcArg[NARG_POS::THIRD]).ToInt32();
     if (!resGetFirstArg) {
@@ -1270,7 +1260,7 @@ napi_value DriverNExporter::Fling(napi_env env, napi_callback_info info)
     }
 
     auto cbExec = [env = env, driver, ptFrom = ptFrom, ptTo = ptTo, stepLen = stepLen, speed = speed]() -> NError {
-        driver->Fling(*ptFrom, *ptTo, stepLen, speed);
+        driver->Fling(ptFrom, ptTo, stepLen, speed);
         return NError(ERRNO_NOERR);
     };
 
@@ -1471,15 +1461,15 @@ napi_value DriverNExporter::FindComponent(napi_env env, napi_callback_info info)
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
-        napi_value jsComponent_ = nullptr;
-        napi_get_reference_value(env, ref, &jsComponent_);
         if (!arg->component) {
             HILOG_ERROR("Failed to component is nullptr.");
-            NError(E_AWAIT).ThrowErr(env);
             return NVal::CreateUndefined(env);
         }
+        napi_value jsComponent_ = nullptr;
+        napi_get_reference_value(env, ref, &jsComponent_);
         if (!NClass::SetEntityFor<Component>(env, jsComponent_, move(arg->component))) {
-            NError(E_ASSERTFAILD).ThrowErr(env);
+            HILOG_ERROR("Failed to set Component entity");
+            return { env, NError(E_PARAMS).GetNapiErr(env) };
         }
         HILOG_INFO("FindComponent Success!");
         return NVal(env, jsComponent_);
