@@ -1,9 +1,9 @@
 # ArkUI-X跨平台自动化测试框架
 
-## 介绍
-ArkUI-X跨平台测试框架代码仓，提供跨平台应用开发自动化测试用例所需能力。
+## 简介
+ArkUI-X跨平台测试框架代码仓，包含单元测试框架(JsUnit)和Ui测试框架(UiTest)，为跨平台应用开发自动化测试用例提供所需的能力。
 
-- 单元测试框架：支持测试用例基础运行机制，并提供测试用例的前后清理、断言等能力。
+- 单元测试框架：支持测试用例基础运行机制，并提供测试用例执行前预处理、执行后清理、断言等能力。
 - UI测试框架：支持针对应用界面的控件进行查找，并可基于控件或坐标进行如点击、滑动等基本操作能力。
 
 ## 目录
@@ -13,7 +13,7 @@ arkXtest
   |-----uitest  UI测试框架
 ```
 
-> 须知
+> 注意
 >
 > 单元测试框架代码复用OpenHarmony平台代码，具体可[查看](https://gitee.com/openharmony/testfwk_arkxtest)。
 
@@ -26,9 +26,7 @@ arkXtest
 | 1    | 基础流程 | 支持编写及异步执行基础用例。         |
 | 2    | 断言库   | 判断用例实际期望值与预期值是否相符。 |
 
-###  使用说明
-
-####  基础流程
+###  基础流程
 
 测试用例中定义describe代表一个测试套， it代表一条用例。
 
@@ -44,7 +42,7 @@ arkXtest
 
 示例代码可参考[使用指南](https://gitee.com/arkui-x/docs/blob/master/zh-cn/application-dev/test/arkxtest.md#编写测试代码-1)。
 
-####  断言库
+###  断言库
 
 断言功能列表：
 
@@ -265,29 +263,31 @@ export default async function abilityTest() {
 
 ##  Ui测试框架功能特性
 
-| No.  | 特性      | 功能说明                                                     |
-| ---- | --------- | ------------------------------------------------------------ |
-| 1    | Driver    | Ui测试的入口，提供查找控件，检查控件存在性以及注入按键能力。 |
-| 2    | On        | 用于描述目标控件特征(文本、id、类型等)，`Driver`根据`On`描述的控件特征信息来查找控件。 |
-| 3    | Component | Driver查找返回的控件对象，提供查询控件属性，滑动查找等触控和检视能力。 |
+| No.  | 特性          | 功能说明                                                     |
+| ---- | ------------- | ------------------------------------------------------------ |
+| 1    | **Driver**    | Ui测试的入口，提供查找控件，检查控件存在性以及注入按键能力。 |
+| 2    | **On**        | 用于描述目标控件特征(文本、id、类型等)，`Driver`根据`On`描述的控件特征信息来查找控件。 |
+| 3    | **Component** | Driver查找返回的控件对象，提供查询控件属性，滑动查找等触控和检视能力。 |
 
-**使用者在测试脚本通过如下方式引入使用：**
+### 使用说明
+
+- 导入模块
 
 ```
 import {Driver,ON,Component,Uiwindow,MatchPattern} from '@ohos.UiTest'
 ```
 
-> 须知
+> 说明
 >
-> 1. `On`类提供的接口全部是同步接口，使用者可以使用`builder`模式链式调用其接口构造控件筛选条件。
-> 2. `Driver`和`Component`类提供的接口全部是异步接口(`Promise`形式)，**需使用`await`语法**。
-> 3. Ui测试用例均需使用**异步**语法编写用例，需遵循单元测试框架异步用例编写规范。
+> 1. **On**提供的接口均为同步接口，使用者可以使用`builder`模式链式调用其接口构造控件筛选条件。
+> 2. **Driver**和**Component**类提供的接口均为异`Promise`异步回调，需使用**await**调用。
+> 3. Ui测试用例均需使用**异步**语法编写用例。
 
-在测试用例文件中import `On/Driver/Component`类，然后调用API接口编写测试用例。
+- 测试用例。
+
 
 ```
 import {describe, beforeAll, beforeEach, afterEach, afterAll, it, expect} from '@ohos/hypium'
-import {ON, Driver, Component, MatchPattern} from '@ohos.UiTest'
 
 export default async function abilityTest() {
   describe('uiTestDemo', function() {
