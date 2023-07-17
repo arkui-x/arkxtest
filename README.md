@@ -4,7 +4,7 @@
 ArkUI-X跨平台测试框架代码仓，包含单元测试框架(JsUnit)和Ui测试框架(UiTest)，为跨平台应用开发自动化测试用例提供所需的能力。
 
 - 单元测试框架：支持测试用例基础运行机制，并提供测试用例执行前预处理、执行后清理、断言等能力。
-- UI测试框架：支持针对应用界面的控件进行查找，并可基于控件或坐标进行如点击、滑动等基本操作能力。
+- Ui测试框架：支持针对应用界面的控件进行查找，并可基于控件或坐标进行如点击、滑动等基本操作能力。
 
 ## 目录
 ```
@@ -12,12 +12,6 @@ arkXtest
   |-----jsunit  单元测试框架
   |-----uitest  UI测试框架
 ```
-
-> 注意
->
-> 单元测试框架代码复用OpenHarmony平台代码，具体可[查看](https://gitee.com/openharmony/testfwk_arkxtest)。
-
-
 
 ##  单元测试框架功能特性
 
@@ -261,6 +255,10 @@ export default async function abilityTest() {
 }
 ```
 
+> 说明
+>
+> 单元测试框架代码复用OpenHarmony平台代码，具体可[查看](https://gitee.com/openharmony/testfwk_arkxtest)。
+
 ##  Ui测试框架功能特性
 
 | No.  | 特性          | 功能说明                                                     |
@@ -279,8 +277,8 @@ import {Driver,ON,Component,Uiwindow,MatchPattern} from '@ohos.UiTest'
 
 > 说明
 >
-> 1. **On**提供的接口均为同步接口，使用者可以使用`builder`模式链式调用其接口构造控件筛选条件。
-> 2. **Driver**和**Component**类提供的接口均为异`Promise`异步回调，需使用**await**调用。
+> 1. **On**提供的接口均为同步接口，使用者可以使用**builder**模式链式调用其接口构造控件筛选条件。
+> 2. **Driver**和**Component**类提供的接口均为**Promise**异步回调，需使用**await**调用。
 > 3. Ui测试用例均需使用**异步**语法编写用例。
 
 - 测试用例。
