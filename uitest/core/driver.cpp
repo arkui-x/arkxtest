@@ -53,7 +53,7 @@ Ace::Platform::UIContent* GetUIContent()
 
 bool Driver::AssertComponentExist(const On& on)
 {
-    HILOG_INFO("Driver::AssertComponentExist");
+    HILOG_DEBUG("Driver::AssertComponentExist");
     auto component = make_unique<Component>();
     component = FindComponent(on);
     return component != nullptr;
@@ -61,7 +61,7 @@ bool Driver::AssertComponentExist(const On& on)
 
 void Driver::PressBack()
 {
-    HILOG_INFO("Driver::PressBack called");
+    HILOG_DEBUG("Driver::PressBack called");
     auto uicontent = GetUIContent();
     CHECK_NULL_VOID(uicontent);
     uicontent->Finish();
@@ -246,7 +246,7 @@ void Driver::Fling(const Point& from, const Point& to, int stepLen, int speed)
 
 void Component::Click()
 {
-    HILOG_INFO("Component::Click");
+    HILOG_DEBUG("Component::Click");
     Point point = GetBoundsCenter();
     Driver driver;
     driver.Click(point.x, point.y);
@@ -254,7 +254,7 @@ void Component::Click()
 
 void Component::DoubleClick()
 {
-    HILOG_INFO("Component::DoubleClick");
+    HILOG_DEBUG("Component::DoubleClick");
     Point point = GetBoundsCenter();
     Driver driver;
     driver.DoubleClick(point.x, point.y);
@@ -262,7 +262,7 @@ void Component::DoubleClick()
 
 void Component::LongClick()
 {
-    HILOG_INFO("Component::LongClick");
+    HILOG_DEBUG("Component::LongClick");
     Point point = GetBoundsCenter();
     Driver driver;
     driver.LongClick(point.x, point.y);
@@ -270,19 +270,19 @@ void Component::LongClick()
 
 string Component::GetId()
 {
-    HILOG_INFO("Component::GetId");
+    HILOG_DEBUG("Component::GetId");
     return componentInfo_.compid;
 }
 
 string Component::GetText()
 {
-    HILOG_INFO("Component::GetText");
+    HILOG_DEBUG("Component::GetText");
     return componentInfo_.text;
 }
 
 string Component::GetType()
 {
-    HILOG_INFO("Component::GetType");
+    HILOG_DEBUG("Component::GetType");
     return componentInfo_.type;
 }
 
@@ -290,7 +290,7 @@ unique_ptr<bool> Component::IsClickable()
 {
     auto clickable = make_unique<bool>();
     *clickable = componentInfo_.clickable;
-    HILOG_INFO("Component::Clickable: %{public}d", *clickable);
+    HILOG_DEBUG("Component::Clickable: %{public}d", *clickable);
     return clickable;
 }
 
@@ -298,7 +298,7 @@ unique_ptr<bool> Component::IsLongClickable()
 {
     auto longClickable = make_unique<bool>();
     *longClickable = componentInfo_.longClickable;
-    HILOG_INFO("Component::LongClickable: %{public}d", *longClickable);
+    HILOG_DEBUG("Component::LongClickable: %{public}d", *longClickable);
     return longClickable;
 }
 
@@ -306,7 +306,7 @@ unique_ptr<bool> Component::IsScrollable()
 {
     auto scrollable = make_unique<bool>();
     *scrollable = componentInfo_.scrollable;
-    HILOG_INFO("Component::scrollable: %{public}d", *scrollable);
+    HILOG_DEBUG("Component::scrollable: %{public}d", *scrollable);
     return scrollable;
 }
 
@@ -314,7 +314,7 @@ unique_ptr<bool> Component::IsEnabled()
 {
     auto enabled = make_unique<bool>();
     *enabled = componentInfo_.enabled;
-    HILOG_INFO("Component::enabled: %{public}d", *enabled);
+    HILOG_DEBUG("Component::enabled: %{public}d", *enabled);
     return enabled;
 }
 
@@ -322,7 +322,7 @@ unique_ptr<bool> Component::IsFocused()
 {
     auto focused = make_unique<bool>();
     *focused = componentInfo_.focused;
-    HILOG_INFO("Component::focused: %{public}d", *focused);
+    HILOG_DEBUG("Component::focused: %{public}d", *focused);
     return focused;
 }
 
@@ -330,7 +330,7 @@ unique_ptr<bool> Component::IsSelected()
 {
     auto selected = make_unique<bool>();
     *selected = componentInfo_.selected;
-    HILOG_INFO("Component::selected: %{public}d", *selected);
+    HILOG_DEBUG("Component::selected: %{public}d", *selected);
     return selected;
 }
 
@@ -338,7 +338,7 @@ unique_ptr<bool> Component::IsChecked()
 {
     auto checked = make_unique<bool>();
     *checked = componentInfo_.checked;
-    HILOG_INFO("Component::checked: %{public}d", *checked);
+    HILOG_DEBUG("Component::checked: %{public}d", *checked);
     return checked;
 }
 
@@ -346,19 +346,19 @@ unique_ptr<bool> Component::IsCheckable()
 {
     auto checkable = make_unique<bool>();
     *checkable = componentInfo_.checkable;
-    HILOG_INFO("Component::checkable: %{public}d", *checkable);
+    HILOG_DEBUG("Component::checkable: %{public}d", *checkable);
     return checkable;
 }
 
 void Component::InputText(const string& text)
 {
-    HILOG_INFO("Component::InputText");
+    HILOG_DEBUG("Component::InputText");
     componentInfo_.text = text;
 }
 
 void Component::ClearText()
 {
-    HILOG_INFO("Component::ClearText");
+    HILOG_DEBUG("Component::ClearText");
     componentInfo_.text = "";
 }
 
@@ -512,7 +512,7 @@ unique_ptr<Component> Component::ScrollSearch(const On& on)
 
 Point Component::GetBoundsCenter()
 {
-    HILOG_INFO("Component::GetBoundsCenter");
+    HILOG_DEBUG("Component::GetBoundsCenter");
     Point point;
     point.x = componentInfo_.left + componentInfo_.width / 2;
     point.y = componentInfo_.top + componentInfo_.height / 2;
@@ -523,81 +523,81 @@ Point Component::GetBoundsCenter()
 
 On* On::Text(const string& text, MatchPattern pattern)
 {
-    HILOG_INFO("On::Text");
+    HILOG_DEBUG("On::Text");
     if (pattern >= MatchPattern::EQUALS && pattern <= MatchPattern::ENDS_WITH) {
         this->text = std::make_shared<string>(text);
         this->pattern_ = pattern;
-        HILOG_INFO("On::Text success");
+        HILOG_DEBUG("On::Text success");
     }
     return this;
 }
 
 On* On::Id(const string& id)
 {
-    HILOG_INFO("On::Onid");
+    HILOG_DEBUG("On::Onid");
     this->id = std::make_shared<string>(id);
     return this;
 }
 
 On* On::Type(const string& type)
 {
-    HILOG_INFO("On::Ontype");
+    HILOG_DEBUG("On::Ontype");
     this->type = std::make_shared<string>(type);
     return this;
 }
 
 On* On::Enabled(bool enabled)
 {
-    HILOG_INFO("On::Onenabled");
+    HILOG_DEBUG("On::Onenabled");
     this->enabled = std::make_shared<bool>(enabled);
     return this;
 }
 
 On* On::Focused(bool focused)
 {
-    HILOG_INFO("Ons::Onfocused");
+    HILOG_DEBUG("Ons::Onfocused");
     this->focused = std::make_shared<bool>(focused);
     return this;
 }
 
 On* On::Selected(bool selected)
 {
-    HILOG_INFO("Driver::Onselected");
+    HILOG_DEBUG("Driver::Onselected");
     this->selected = std::make_shared<bool>(selected);
     return this;
 }
 
 On* On::Clickable(bool clickable)
 {
-    HILOG_INFO("Driver::Onclickable");
+    HILOG_DEBUG("Driver::Onclickable");
     this->clickable = std::make_shared<bool>(clickable);
     return this;
 }
 
 On* On::LongClickable(bool longClickable)
 {
-    HILOG_INFO("Driver::OnlongClickable");
+    HILOG_DEBUG("Driver::OnlongClickable");
     this->longClickable = std::make_shared<bool>(longClickable);
     return this;
 }
 
 On* On::Scrollable(bool scrollable)
 {
-    HILOG_INFO("Driver::Onscrollable");
+    HILOG_DEBUG("Driver::Onscrollable");
     this->scrollable = std::make_shared<bool>(scrollable);
     return this;
 }
 
 On* On::Checkable(bool checkable)
 {
-    HILOG_INFO("Driver::Oncheckable");
+    HILOG_DEBUG("Driver::Oncheckable");
     this->checkable = std::make_shared<bool>(checkable);
     return this;
 }
 
 On* On::Checked(bool checked)
 {
-    HILOG_INFO("Driver::Onchecked");
+    HILOG_DEBUG("Driver::Onchecked");
     this->checked = std::make_shared<bool>(checked);
     return this;
 }
@@ -664,7 +664,7 @@ void GetComponentvalue(OHOS::Ace::Platform::ComponentInfo& component,
 {
     if (on == component) {
         ret = component;
-        HILOG_INFO("GetComponentvalue return");
+        HILOG_DEBUG("GetComponentvalue return");
         return;
     }
 
@@ -675,17 +675,17 @@ void GetComponentvalue(OHOS::Ace::Platform::ComponentInfo& component,
 
 unique_ptr<Component> Driver::FindComponent(const On& on)
 {
-    HILOG_INFO("Driver::FindComponent begin");
+    HILOG_DEBUG("Driver::FindComponent begin");
     auto component = make_unique<Component>();
     OHOS::Ace::Platform::ComponentInfo info;
     auto uiContent = GetUIContent();
     CHECK_NULL_RETURN(uiContent, nullptr);
     uiContent->GetAllComponents(0, info);
-    HILOG_INFO("GetAllComponents ok");
+    HILOG_DEBUG("GetAllComponents ok");
     OHOS::Ace::Platform::ComponentInfo ret;
     GetComponentvalue(info, on, ret);
     if (ret.left < 1 && ret.top < 1 && ret.width < 1 && ret.height < 1) {
-        HILOG_INFO("not  find Component");
+        HILOG_DEBUG("not  find Component");
         return nullptr;
     }
     component->SetComponentInfo(ret);
@@ -707,13 +707,13 @@ void GetComponentvalues(OHOS::Ace::Platform::ComponentInfo& info, const On& on,
 
 vector<unique_ptr<Component>> Driver::FindComponents(const On& on)
 {
-    HILOG_INFO("Driver::FindComponents");
+    HILOG_DEBUG("Driver::FindComponents");
     vector<unique_ptr<Component>> components;
     OHOS::Ace::Platform::ComponentInfo info;
     auto uiContent = GetUIContent();
     uiContent->GetAllComponents(0, info);
     GetComponentvalues(info, on, components);
-    HILOG_INFO("Driver::FindComponents");
+    HILOG_DEBUG("Driver::FindComponents");
     return components;
 }
 
