@@ -41,7 +41,7 @@ static napi_value Instantiate(napi_env env, napi_value thisVar)
     bool result;
     napi_strict_equals(env, OnVal, thisVar, &result);
     if (result) {
-        HILOG_INFO("Uitest:: On addr equals.");
+        HILOG_DEBUG("Uitest:: On addr equals.");
         thisVar = NClass::InstantiateClass(env, OnNExporter::ON_CLASS_NAME, {});
     }
     return thisVar;
@@ -49,7 +49,7 @@ static napi_value Instantiate(napi_env env, napi_value thisVar)
 
 napi_value OnNExporter::Text(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("Uitest::OnNExporter::Text begin.");
+    HILOG_DEBUG("Uitest::OnNExporter::Text begin.");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ONE, NARG_CNT::TWO)) {
         HILOG_ERROR("Uitest::OnNExporter::Text Number of arguments unmatched");
@@ -81,13 +81,13 @@ napi_value OnNExporter::Text(napi_env env, napi_callback_info info)
         pattern = static_cast<MatchPattern>(number);
     }
     on->Text(string(txt.get()), pattern);
-    HILOG_INFO("Uitest::OnNExporter::Text end.");
+    HILOG_DEBUG("Uitest::OnNExporter::Text end.");
     return thisVar;
 }
 
 napi_value OnNExporter::Id(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("Uitest:: OnNExporter Id begin.");
+    HILOG_DEBUG("Uitest:: OnNExporter Id begin.");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ONE)) {
         HILOG_ERROR("Id Number of arguments unmatched");
@@ -108,13 +108,13 @@ napi_value OnNExporter::Id(napi_env env, napi_callback_info info)
         return nullptr;
     }
     on->Id(string(id.get()));
-    HILOG_INFO("Uitest:: OnNExporter Id end.");
+    HILOG_DEBUG("Uitest:: OnNExporter Id end.");
     return thisVar;
 }
 
 napi_value OnNExporter::Type(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("Uitest:: OnNExporter Type begin.");
+    HILOG_DEBUG("Uitest:: OnNExporter Type begin.");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ONE)) {
         HILOG_ERROR("Type Number of arguments unmatched");
@@ -136,17 +136,17 @@ napi_value OnNExporter::Type(napi_env env, napi_callback_info info)
         return nullptr;
     }
     on->Type(string(type.get()));
-    HILOG_INFO("Uitest:: OnNExporter Type end.");
+    HILOG_DEBUG("Uitest:: OnNExporter Type end.");
     return thisVar;
 }
 
 static napi_value ExecImpl(napi_env env, napi_value thisVar, int32_t type, bool b)
 {
-    HILOG_INFO("Uitest:: ExecImpl begin.");
+    HILOG_DEBUG("Uitest:: ExecImpl begin.");
     thisVar = Instantiate(env, thisVar);
     auto on = NClass::GetEntityOf<On>(env, thisVar);
     if (on) {
-        HILOG_INFO("Uitest:: ExecImpl type: %{public}d", type);
+        HILOG_DEBUG("Uitest:: ExecImpl type: %{public}d", type);
         switch (type) {
             case CommonType::CLICKABLE:
                 on->Clickable(b);
@@ -177,13 +177,13 @@ static napi_value ExecImpl(napi_env env, napi_value thisVar, int32_t type, bool 
                 break;
         }
     }
-    HILOG_INFO("Uitest:: ExecImpl end.");
+    HILOG_DEBUG("Uitest:: ExecImpl end.");
     return thisVar;
 }
 
 static napi_value OnTemplate(napi_env env, napi_callback_info info, int32_t type)
 {
-    HILOG_INFO("Uitest:: OnTemplate begin.");
+    HILOG_DEBUG("Uitest:: OnTemplate begin.");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO, NARG_CNT::ONE)) {
         HILOG_ERROR("Number of arguments unmatched");
@@ -214,7 +214,7 @@ static napi_value OnTemplate(napi_env env, napi_callback_info info, int32_t type
         }
         b_ = b;
     }
-    HILOG_INFO("Uitest:: OnTemplate end.");
+    HILOG_DEBUG("Uitest:: OnTemplate end.");
     return ExecImpl(env, funcArg.GetThisVar(), type, b_);
 }
 
@@ -260,7 +260,7 @@ napi_value OnNExporter::Checkable(napi_env env, napi_callback_info info)
 
 static napi_value OnInitializer(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("OnInitializer begin");
+    HILOG_DEBUG("OnInitializer begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
         HILOG_ERROR("On Number of arguments unmatched");
@@ -274,13 +274,13 @@ static napi_value OnInitializer(napi_env env, napi_callback_info info)
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
     }
-    HILOG_INFO("OnInitializer end");
+    HILOG_DEBUG("OnInitializer end");
     return funcArg.GetThisVar();
 }
 
 bool OnNExporter::Export()
 {
-    HILOG_INFO("Uitest::OnNExporter Export begin");
+    HILOG_DEBUG("Uitest::OnNExporter Export begin");
     vector<napi_property_descriptor> props = {
         NVal::DeclareNapiFunction(OnNExporter::FUNCTION_TEXT, OnNExporter::Text),
         NVal::DeclareNapiFunction(OnNExporter::FUNCTION_ID, OnNExporter::Id),
@@ -314,7 +314,7 @@ bool OnNExporter::Export()
         return false;
     }
     napi_create_reference(exports_.env_, On, 1, &OnRef);
-    HILOG_INFO("Uitest::OnNExporter Export end");
+    HILOG_DEBUG("Uitest::OnNExporter Export end");
     return exports_.AddProp(OnNExporter::ON_CLASS_NAME_, On);
 }
 
@@ -329,20 +329,20 @@ ComponentNExporter::~ComponentNExporter() {}
 
 static napi_value ComponentInitializer(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("Component Initializer begin");
+    HILOG_DEBUG("Component Initializer begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
         HILOG_ERROR("Component Number of arguments unmatched");
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
     }
-    HILOG_INFO("Component Initializer end");
+    HILOG_DEBUG("Component Initializer end");
     return funcArg.GetThisVar();
 }
 
 napi_value ComponentNExporter::Click(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("Click begin");
+    HILOG_DEBUG("Click begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
         HILOG_ERROR("Click Number of arguments unmatched");
@@ -376,7 +376,7 @@ napi_value ComponentNExporter::Click(napi_env env, napi_callback_info info)
 
 napi_value ComponentNExporter::DoubleClick(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("DoubleClick begin");
+    HILOG_DEBUG("DoubleClick begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
         HILOG_ERROR("DoubleClick Number of arguments unmatched");
@@ -410,7 +410,7 @@ napi_value ComponentNExporter::DoubleClick(napi_env env, napi_callback_info info
 
 napi_value ComponentNExporter::LongClick(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("LongClick begin");
+    HILOG_DEBUG("LongClick begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
         HILOG_ERROR("LongClick Number of arguments unmatched");
@@ -444,7 +444,7 @@ napi_value ComponentNExporter::LongClick(napi_env env, napi_callback_info info)
 
 napi_value ComponentNExporter::GetId(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("GetId begin");
+    HILOG_DEBUG("GetId begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
         HILOG_ERROR("GetId Number of arguments unmatched");
@@ -479,7 +479,7 @@ napi_value ComponentNExporter::GetId(napi_env env, napi_callback_info info)
 
 napi_value ComponentNExporter::GetText(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("GetText begin");
+    HILOG_DEBUG("GetText begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
         HILOG_ERROR("GetText Number of arguments unmatched");
@@ -514,7 +514,7 @@ napi_value ComponentNExporter::GetText(napi_env env, napi_callback_info info)
 
 napi_value ComponentNExporter::GetType(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("GetType begin");
+    HILOG_DEBUG("GetType begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
         HILOG_ERROR("GetType Number of arguments unmatched");
@@ -549,9 +549,9 @@ napi_value ComponentNExporter::GetType(napi_env env, napi_callback_info info)
 
 static string ProcedureName(int32_t type)
 {
-    HILOG_INFO("ProcedureName begin");
+    HILOG_DEBUG("ProcedureName begin");
     switch (type) {
-        HILOG_INFO("ProcedureName type: %{public}d", type);
+        HILOG_DEBUG("ProcedureName type: %{public}d", type);
         case CommonType::CLICKABLE:
             return "IsClickable";
         case CommonType::LONGCLICKABLE:
@@ -569,14 +569,14 @@ static string ProcedureName(int32_t type)
         case CommonType::CHECKABLE:
             return "IsCheckable";
     }
-    HILOG_INFO("ProcedureName end");
+    HILOG_DEBUG("ProcedureName end");
 }
 
 static void ComponentImpl(shared_ptr<ArgsCls> args, Component* component, int32_t type)
 {
-    HILOG_INFO("ComponentImpl begin");
+    HILOG_DEBUG("ComponentImpl begin");
     switch (type) {
-        HILOG_INFO("ComponentImpl type: %{public}d", type);
+        HILOG_DEBUG("ComponentImpl type: %{public}d", type);
         case CommonType::CLICKABLE:
             args->isCommonBool = move(component->IsClickable());
             break;
@@ -605,12 +605,12 @@ static void ComponentImpl(shared_ptr<ArgsCls> args, Component* component, int32_
             HILOG_ERROR("Cannot read type of ComponentImpl");
             break;
     }
-    HILOG_INFO("ComponentImpl end");
+    HILOG_DEBUG("ComponentImpl end");
 }
 
 static napi_value ComponentTemplate(napi_env env, napi_callback_info info, int32_t type)
 {
-    HILOG_INFO("ComponentTemplate begin");
+    HILOG_DEBUG("ComponentTemplate begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
         HILOG_ERROR("ComponentTemplate Number of arguments unmatched");
@@ -639,7 +639,7 @@ static napi_value ComponentTemplate(napi_env env, napi_callback_info info, int32
     };
 
     NVal thisVar(env, funcArg.GetThisVar());
-    HILOG_INFO("ComponentTemplate end");
+    HILOG_DEBUG("ComponentTemplate end");
     return NAsyncWorkPromise(env, thisVar).Schedule(ProcedureName(type), cbExec, cbCompl).val_;
 }
 
@@ -685,7 +685,7 @@ napi_value ComponentNExporter::IsCheckable(napi_env env, napi_callback_info info
 
 napi_value ComponentNExporter::InputText(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("InputText begin");
+    HILOG_DEBUG("InputText begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ONE)) {
         HILOG_ERROR("InputText Number of arguments unmatched");
@@ -726,7 +726,7 @@ napi_value ComponentNExporter::InputText(napi_env env, napi_callback_info info)
 
 napi_value ComponentNExporter::ClearText(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("ClearText begin");
+    HILOG_DEBUG("ClearText begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
         HILOG_ERROR("ClearText Number of arguments unmatched");
@@ -760,7 +760,7 @@ napi_value ComponentNExporter::ClearText(napi_env env, napi_callback_info info)
 
 napi_value ComponentNExporter::ScrollToTop(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("ScrollToTop begin");
+    HILOG_DEBUG("ScrollToTop begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO, NARG_CNT::ONE)) {
         HILOG_ERROR("ScrollToTop Number of arguments unmatched");
@@ -804,7 +804,7 @@ napi_value ComponentNExporter::ScrollToTop(napi_env env, napi_callback_info info
 
 napi_value ComponentNExporter::ScrollToBottom(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("ScrollToBottom begin");
+    HILOG_DEBUG("ScrollToBottom begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO, NARG_CNT::ONE)) {
         HILOG_ERROR("ScrollToBottom Number of arguments unmatched");
@@ -848,7 +848,7 @@ napi_value ComponentNExporter::ScrollToBottom(napi_env env, napi_callback_info i
 
 napi_value ComponentNExporter::ScrollSearch(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("ScrollSearch begin");
+    HILOG_DEBUG("ScrollSearch begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ONE)) {
         HILOG_ERROR("ScrollSearch Number of arguments unmatched");
@@ -887,17 +887,17 @@ napi_value ComponentNExporter::ScrollSearch(napi_env env, napi_callback_info inf
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
-        napi_value jsComponent_ = nullptr;
-        napi_get_reference_value(env, ref, &jsComponent_);
         if (!arg->component) {
             HILOG_ERROR("Failed to component is nullptr.");
-            NError(E_AWAIT).ThrowErr(env);
             return NVal::CreateUndefined(env);
         }
+        napi_value jsComponent_ = nullptr;
+        napi_get_reference_value(env, ref, &jsComponent_);
         if (!NClass::SetEntityFor<Component>(env, jsComponent_, move(arg->component))) {
-            NError(E_ASSERTFAILD).ThrowErr(env);
+            HILOG_ERROR("Failed to set Component entity");
+            return { env, NError(E_PARAMS).GetNapiErr(env) };
         }
-        HILOG_INFO("ScrollSearch Success!");
+        HILOG_DEBUG("ScrollSearch Success!");
         return NVal(env, jsComponent_);
     };
 
@@ -908,7 +908,7 @@ napi_value ComponentNExporter::ScrollSearch(napi_env env, napi_callback_info inf
 
 napi_value ComponentNExporter::GetBoundsCenter(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("GetBoundsCenter begin");
+    HILOG_DEBUG("GetBoundsCenter begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
         HILOG_ERROR("GetBoundsCenter Number of arguments unmatched");
@@ -946,7 +946,7 @@ napi_value ComponentNExporter::GetBoundsCenter(napi_env env, napi_callback_info 
 
 bool ComponentNExporter::Export()
 {
-    HILOG_INFO("Uitest::ComponentNExporter Export begin");
+    HILOG_DEBUG("Uitest::ComponentNExporter Export begin");
     vector<napi_property_descriptor> props = {
         NVal::DeclareNapiFunction(ComponentNExporter::FUNCTION_CLICK, ComponentNExporter::Click),
         NVal::DeclareNapiFunction(ComponentNExporter::FUNCTION_DOUBLE_CLICK, ComponentNExporter::DoubleClick),
@@ -983,7 +983,7 @@ bool ComponentNExporter::Export()
         return false;
     }
 
-    HILOG_INFO("Uitest::ComponentNExporter Export end");
+    HILOG_DEBUG("Uitest::ComponentNExporter Export end");
     return exports_.AddProp(ComponentNExporter::COMPONENT_CLASS_NAME, classValue);
 }
 
@@ -998,7 +998,7 @@ DriverNExporter::~DriverNExporter() {}
 
 napi_value DriverNExporter::CreateDriver(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("Uitest::CreateDriver begin");
+    HILOG_DEBUG("Uitest::CreateDriver begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
         HILOG_ERROR("Start Number of arguments unmatched");
@@ -1011,13 +1011,13 @@ napi_value DriverNExporter::CreateDriver(napi_env env, napi_callback_info info)
         return NVal::CreateUndefined(env).val_;
     }
 
-    HILOG_INFO("Uitest::CreateDriver end");
+    HILOG_DEBUG("Uitest::CreateDriver end");
     return thisVar;
 }
 
 napi_value DriverNExporter::DelayMs(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("DelayMs begin");
+    HILOG_DEBUG("DelayMs begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ONE)) {
         HILOG_ERROR("DelayMs Number of arguments unmatched");
@@ -1058,7 +1058,7 @@ napi_value DriverNExporter::DelayMs(napi_env env, napi_callback_info info)
 
 napi_value DriverNExporter::PressBack(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("PressBack begin");
+    HILOG_DEBUG("PressBack begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
         HILOG_ERROR("PressBack Number of arguments unmatched");
@@ -1092,7 +1092,7 @@ napi_value DriverNExporter::PressBack(napi_env env, napi_callback_info info)
 
 napi_value DriverNExporter::AssertComponentExist(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("AssertComponentExist begin");
+    HILOG_DEBUG("AssertComponentExist begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ONE)) {
         HILOG_ERROR("AssertComponentExist Number of arguments unmatched");
@@ -1176,7 +1176,7 @@ static bool GetArgs(napi_env env, NFuncArg &funcArg, shared_ptr<ArgsInfo> argsIn
 
 napi_value DriverNExporter::Swipe(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("Swipe begin");
+    HILOG_DEBUG("Swipe begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::FOUR, NARG_CNT::FIVE)) {
         HILOG_ERROR("Swipe Number of arguments unmatched");
@@ -1206,7 +1206,7 @@ napi_value DriverNExporter::Swipe(napi_env env, napi_callback_info info)
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
-        HILOG_INFO("Swipe Success!");
+        HILOG_DEBUG("Swipe Success!");
         return NVal::CreateUndefined(env);
     };
 
@@ -1217,7 +1217,7 @@ napi_value DriverNExporter::Swipe(napi_env env, napi_callback_info info)
 
 napi_value DriverNExporter::Fling(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("Fling begin");
+    HILOG_DEBUG("Fling begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::FOUR)) {
         HILOG_ERROR("Fling Number of arguments unmatched");
@@ -1236,24 +1236,14 @@ napi_value DriverNExporter::Fling(napi_env env, napi_callback_info info)
         HILOG_ERROR("Invalid objFrom");
         return nullptr;
     }
-    auto ptFrom = NClass::GetEntityOf<Point>(env, objFrom.val_);
-    if (!ptFrom) {
-        HILOG_ERROR("Cannot get entity of ptFrom");
-        NError(E_DESTROYED).ThrowErr(env);
-        return nullptr;
-    }
+    Point ptFrom = { std::get<1>(objFrom.GetProp("x").ToInt32()), std::get<1>(objFrom.GetProp("y").ToInt32()) };
 
     NVal objTo(env, funcArg[NARG_POS::SECOND]);
     if (!objTo.TypeIs(napi_object)) {
         HILOG_ERROR("Invalid objTo");
         return nullptr;
     }
-    auto ptTo = NClass::GetEntityOf<Point>(env, objTo.val_);
-    if (!ptTo) {
-        HILOG_ERROR("Cannot get entity of ptTo");
-        NError(E_DESTROYED).ThrowErr(env);
-        return nullptr;
-    }
+    Point ptTo = { std::get<1>(objTo.GetProp("x").ToInt32()), std::get<1>(objTo.GetProp("y").ToInt32()) };
 
     auto [resGetFirstArg, stepLen] = NVal(env, funcArg[NARG_POS::THIRD]).ToInt32();
     if (!resGetFirstArg) {
@@ -1270,7 +1260,7 @@ napi_value DriverNExporter::Fling(napi_env env, napi_callback_info info)
     }
 
     auto cbExec = [env = env, driver, ptFrom = ptFrom, ptTo = ptTo, stepLen = stepLen, speed = speed]() -> NError {
-        driver->Fling(*ptFrom, *ptTo, stepLen, speed);
+        driver->Fling(ptFrom, ptTo, stepLen, speed);
         return NError(ERRNO_NOERR);
     };
 
@@ -1289,7 +1279,7 @@ napi_value DriverNExporter::Fling(napi_env env, napi_callback_info info)
 
 napi_value DriverNExporter::Click(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("Click begin");
+    HILOG_DEBUG("Click begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::TWO)) {
         HILOG_ERROR("Click Number of arguments unmatched");
@@ -1326,7 +1316,7 @@ napi_value DriverNExporter::Click(napi_env env, napi_callback_info info)
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
-        HILOG_INFO("Click Success!");
+        HILOG_DEBUG("Click Success!");
         return NVal::CreateUndefined(env);
     };
 
@@ -1374,7 +1364,7 @@ napi_value DriverNExporter::DoubleClick(napi_env env, napi_callback_info info)
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
-        HILOG_INFO("DoubleClick Success!");
+        HILOG_DEBUG("DoubleClick Success!");
         return NVal::CreateUndefined(env);
     };
 
@@ -1385,7 +1375,7 @@ napi_value DriverNExporter::DoubleClick(napi_env env, napi_callback_info info)
 
 napi_value DriverNExporter::LongClick(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("LongClick begin");
+    HILOG_DEBUG("LongClick begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::TWO)) {
         HILOG_ERROR("LongClick Number of arguments unmatched");
@@ -1422,7 +1412,7 @@ napi_value DriverNExporter::LongClick(napi_env env, napi_callback_info info)
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
-        HILOG_INFO("LongClick Success!");
+        HILOG_DEBUG("LongClick Success!");
         return NVal::CreateUndefined(env);
     };
 
@@ -1433,7 +1423,7 @@ napi_value DriverNExporter::LongClick(napi_env env, napi_callback_info info)
 
 napi_value DriverNExporter::FindComponent(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("FindComponent begin");
+    HILOG_DEBUG("FindComponent begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ONE)) {
         HILOG_ERROR("FindComponent Number of arguments unmatched");
@@ -1471,17 +1461,17 @@ napi_value DriverNExporter::FindComponent(napi_env env, napi_callback_info info)
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
-        napi_value jsComponent_ = nullptr;
-        napi_get_reference_value(env, ref, &jsComponent_);
         if (!arg->component) {
             HILOG_ERROR("Failed to component is nullptr.");
-            NError(E_AWAIT).ThrowErr(env);
             return NVal::CreateUndefined(env);
         }
+        napi_value jsComponent_ = nullptr;
+        napi_get_reference_value(env, ref, &jsComponent_);
         if (!NClass::SetEntityFor<Component>(env, jsComponent_, move(arg->component))) {
-            NError(E_ASSERTFAILD).ThrowErr(env);
+            HILOG_ERROR("Failed to set Component entity");
+            return { env, NError(E_PARAMS).GetNapiErr(env) };
         }
-        HILOG_INFO("FindComponent Success!");
+        HILOG_DEBUG("FindComponent Success!");
         return NVal(env, jsComponent_);
     };
 
@@ -1492,7 +1482,7 @@ napi_value DriverNExporter::FindComponent(napi_env env, napi_callback_info info)
 
 napi_value DriverNExporter::FindComponents(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("FindComponents begin");
+    HILOG_DEBUG("FindComponents begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ONE)) {
         HILOG_ERROR("FindComponents Number of arguments unmatched");
@@ -1527,7 +1517,7 @@ napi_value DriverNExporter::FindComponents(napi_env env, napi_callback_info info
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
-        HILOG_INFO("FindComponents Success!");
+        HILOG_DEBUG("FindComponents Success!");
         return NVal::CreateArray(env, move(args->components), ComponentNExporter::COMPONENT_CLASS_NAME);
     };
 
@@ -1538,7 +1528,7 @@ napi_value DriverNExporter::FindComponents(napi_env env, napi_callback_info info
 
 static napi_value DriverInitializer(napi_env env, napi_callback_info info)
 {
-    HILOG_INFO("DriverInitializer begin");
+    HILOG_DEBUG("DriverInitializer begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
         HILOG_ERROR("driver Number of arguments unmatched");
@@ -1551,13 +1541,13 @@ static napi_value DriverInitializer(napi_env env, napi_callback_info info)
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
     }
-    HILOG_INFO("DriverInitializer end");
+    HILOG_DEBUG("DriverInitializer end");
     return funcArg.GetThisVar();
 }
 
 bool DriverNExporter::Export()
 {
-    HILOG_INFO("Uitest::DriverNExporter Export begin");
+    HILOG_DEBUG("Uitest::DriverNExporter Export begin");
     vector<napi_property_descriptor> props = {
         NVal::DeclareNapiStaticFunction(DriverNExporter::FUNCTION_CREATE, DriverNExporter::CreateDriver),
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_CREATE, DriverNExporter::CreateDriver),
@@ -1586,7 +1576,7 @@ bool DriverNExporter::Export()
         return false;
     }
 
-    HILOG_INFO("Uitest::DriverNExporter Export end");
+    HILOG_DEBUG("Uitest::DriverNExporter Export end");
     return exports_.AddProp(DriverNExporter::DRIVER_CLASS_NAME, classValue);
 }
 

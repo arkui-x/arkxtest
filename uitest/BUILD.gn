@@ -40,6 +40,8 @@ ohos_source_set("uitest_core_static") {
   include_dirs = [
     "$libn_dirs/include",
     "$libn_dirs/include/n_async",
+    "//foundation/appframework/arkui/uicontent",
+    "//foundation/arkui/ace_engine/frameworks/core/accessibility",
   ]
 
   include_dirs += [

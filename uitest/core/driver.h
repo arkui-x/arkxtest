@@ -16,7 +16,9 @@
 #ifndef DRIVER_H
 #define DRIVER_H
 
-#include "foundation/appframework/arkui/uicontent/component_info.h"
+#include <memory>
+
+#include "component_info.h"
 
 namespace OHOS::UiTest {
 using namespace std;
@@ -65,9 +67,9 @@ public:
 
 class On {
 public:
-    On* Text(const string &text, MatchPattern pattern);
-    On* Id(const string &id);
-    On* Type(const string &type);
+    On* Text(const string& text, MatchPattern pattern);
+    On* Id(const string& id);
+    On* Type(const string& type);
     On* Enabled(bool enabled);
     On* Focused(bool focused);
     On* Selected(bool selected);
@@ -77,20 +79,23 @@ public:
     On* Checkable(bool checkable);
     On* Checked(bool checked);
 
-    std::vector<OHOS::UiTest::CommonType> commonType;
-    string id;
-    string text;
-    string type;
-    bool clickable;
-    bool longClickable;
-    bool scrollable;
-    bool enabled;
-    bool focused;
-    bool selected;
-    bool checked;
-    bool checkable;
+    shared_ptr<string> id;
+    shared_ptr<string> text;
+    shared_ptr<string> type;
+    shared_ptr<bool> clickable;
+    shared_ptr<bool> longClickable;
+    shared_ptr<bool> scrollable;
+    shared_ptr<bool> enabled;
+    shared_ptr<bool> focused;
+    shared_ptr<bool> selected;
+    shared_ptr<bool> checked;
+    shared_ptr<bool> checkable;
     MatchPattern pattern_ = MatchPattern::EQUALS;
+
+    bool CompareText(const string& text) const;
 };
+
+bool operator == (const On& on, const OHOS::Ace::Platform::ComponentInfo& info);
 
 class Component {
 public:
@@ -108,12 +113,12 @@ public:
     unique_ptr<bool> IsSelected();
     unique_ptr<bool> IsChecked();
     unique_ptr<bool> IsCheckable();
-    void InputText(const string &text);
+    void InputText(const string& text);
     void ClearText();
     void ScrollToTop(int speed);
     void ScrollToBottom(int speed);
-    void SetComponentInfo(OHOS::Ace::Platform::ComponentInfo& com);
-    unique_ptr<Component> ScrollSearch(On on);
+    void SetComponentInfo(const OHOS::Ace::Platform::ComponentInfo& com);
+    unique_ptr<Component> ScrollSearch(const On& on);
     Point GetBoundsCenter();
 
 private:
@@ -125,16 +130,16 @@ public:
     Driver() = default;
     ~Driver() = default;
 
-    bool AssertComponentExist(On &on);
+    bool AssertComponentExist(const On& on);
     void PressBack();
     void DelayMs(int dur);
     void Click(int x, int y);
     void DoubleClick(int x, int y);
     void LongClick(int x, int y);
     void Swipe(int startx, int starty, int endx, int endy, int speed);
-    void Fling(Point& from, Point& to, int stepLen, int speed);
-    unique_ptr<Component> FindComponent(On on);
-    vector<unique_ptr<Component>> FindComponents(On on);
+    void Fling(const Point& from, const Point& to, int stepLen, int speed);
+    unique_ptr<Component> FindComponent(const On& on);
+    vector<unique_ptr<Component>> FindComponents(const On& on);
 };
 } // namespace OHOS::UiTest
 
