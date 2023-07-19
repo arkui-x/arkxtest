@@ -20,13 +20,38 @@
 
 #include "ability_delegator/ability_delegator_registry.h"
 #include "accessibility_node.h"
+#include "core/event/key_event.h"
+#include "core/event/touch_event.h"
 #include "ui_content.h"
 #include "utils/log.h"
 
-#include "core/event/touch_event.h"
-
 namespace OHOS::UiTest {
 using namespace std;
+
+static constexpr const int32_t DOUBLE_CLICK = 2;
+static constexpr const char UPPER_A = 'A';
+static constexpr const char LOWER_A = 'a';
+static constexpr const char DEF_NUMBER = '0';
+static constexpr const int32_t DELAY_TIME= 100;
+
+
+int32_t Findkeycode(const char text)
+{
+    if(isupper(text)) {
+        return (text - UPPER_A + static_cast<int32_t>(Ace::KeyCode::KEY_A));
+    }
+
+    if(islower(text)) {
+        return (text - LOWER_A + static_cast<int32_t>(Ace::KeyCode::KEY_A));
+    }
+
+    if (isdigit(text)) {
+        return (text - DEF_NUMBER + static_cast<int32_t>(Ace::KeyCode::KEY_0));
+    }
+
+    HILOG_DEBUG("Please enter lowercase letters and numbers");
+    return -1;
+}
 
 int64_t getCurrentTimeMillis()
 {
@@ -113,17 +138,15 @@ void Driver::DoubleClick(int x, int y)
     std::vector<Ace::TouchEvent> clickEvents;
     int64_t currentTimeMillis = getCurrentTimeMillis();
 
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < DOUBLE_CLICK; i++) {
         Ace::TouchEvent downEvent;
         PackagingEvent(downEvent, TimeStamp(currentTimeMillis), Ace::TouchType::DOWN, { x, y });
         clickEvents.push_back(downEvent);
 
         Ace::TouchEvent upEvent;
         UiOpArgs options;
-        PackagingEvent(upEvent, TimeStamp(currentTimeMillis + options.clickHoldMs_), Ace::TouchType::DOWN, { x, y });
+        PackagingEvent(upEvent, TimeStamp(currentTimeMillis + options.clickHoldMs_), Ace::TouchType::UP, { x, y });
         clickEvents.push_back(upEvent);
-
-        currentTimeMillis += options.clickHoldMs_;
     }
 
     auto uiContent = GetUIContent();
@@ -170,7 +193,7 @@ void Driver::Swipe(int startx, int starty, int endx, int endy, int speed)
     const uint32_t timeCostMs = (uint32_t)((distance * 1000) / swipeSpeed);
 
     if (distance < 1) {
-        HILOG_WARN("Driver::Swipe ignored. distance value is illegal");
+        HILOG_ERROR("Driver::Swipe ignored. distance value is illegal");
         return;
     }
 
@@ -220,7 +243,7 @@ void Driver::Fling(const Point& from, const Point& to, int stepLen, int speed)
     const int distance = sqrt(distanceX * distanceX + distanceY * distanceY);
     const uint32_t timeCostMs = (uint32_t)((distance * 1000) / flingSpeed);
     if (distance < stepLen) {
-        HILOG_WARN("Driver::Fling ignored. stepLen is illegal");
+        HILOG_ERROR("Driver::Fling ignored. stepLen is illegal");
         return;
     }
     const uint16_t steps = distance / stepLen;
@@ -353,38 +376,60 @@ unique_ptr<bool> Component::IsCheckable()
 void Component::InputText(const string& text)
 {
     HILOG_DEBUG("Component::InputText");
-    componentInfo_.text = text;
+    auto uiContent = GetUIContent();
+    Driver driver;
+    for (int i = 0; i < text.length(); i++) {
+        int32_t keycode = Findkeycode(text[i]);
+        if (keycode == -1) {
+            continue;
+        }
+        HILOG_DEBUG("Component::checkable: %{public}d", keycode);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(keycode), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(keycode), static_cast<int32_t>(Ace::KeyAction::UP), 0);
+        driver.DelayMs(DELAY_TIME);
+    }
+   
 }
 
 void Component::ClearText()
 {
-    HILOG_DEBUG("Component::ClearText");
-    componentInfo_.text = "";
+    HILOG_DEBUG("Component::ClearText length:%d", componentInfo_.text.length());
+    auto uiContent = GetUIContent();
+    CHECK_NULL_VOID(uiContent);
+
+    Driver driver;
+    for (int i = 0; i < componentInfo_.text.length(); i++) {
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_DPAD_RIGHT), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_DPAD_RIGHT), static_cast<int32_t>(Ace::KeyAction::UP), 0);
+        driver.DelayMs(DELAY_TIME);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_DEL), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_DEL), static_cast<int32_t>(Ace::KeyAction::UP), 0);
+    }
 }
 
 void Component::ScrollToTop(int speed)
 {
     HILOG_DEBUG("Component::ScrollToTop speed:%d", speed);
     if (!IsScrollable()) {
-        HILOG_WARN("Component::ScrollToTop current component is not scrollable");
+        HILOG_ERROR("Component::ScrollToTop current component is not scrollable");
         return;
     }
 
     HILOG_DEBUG("Component::ScrollToTop child.size:%d", componentInfo_.children.size());
     if (componentInfo_.children.size() < 1) {
-        HILOG_WARN("Component::ScrollToTop current scollable component has no child");
+        HILOG_ERROR("Component::ScrollToTop current scollable component has no child");
         return;
     }
 
     OHOS::Ace::Platform::ComponentInfo flex = componentInfo_.children.front();
     HILOG_DEBUG("Component::ScrollToTop flex.size:%d", flex.children.size());
     if (flex.children.size() < 1) {
-        HILOG_WARN("Component::ScrollToTop flex has no child");
+        HILOG_ERROR("Component::ScrollToTop flex has no child");
         return;
     }
 
     if (flex.children.front().top >= (componentInfo_.top)) {
-        HILOG_WARN("Component::ScrollToTop component is already in the top");
+        HILOG_ERROR("Component::ScrollToTop component is already in the top");
         return;
     }
 
@@ -411,25 +456,25 @@ void Component::ScrollToBottom(int speed)
 {
     HILOG_DEBUG("Component::ScrollToBottom speed:%d", speed);
     if (!IsScrollable()) {
-        HILOG_WARN("Component::ScrollToBottom current component is not scrollable");
+        HILOG_ERROR("Component::ScrollToBottom current component is not scrollable");
         return;
     }
 
     HILOG_DEBUG("Component::scrollToBottom child.size:%d", componentInfo_.children.size());
     if (componentInfo_.children.size() < 1) {
-        HILOG_WARN("Component::ScrollToBottom current scollable component has no child");
+        HILOG_ERROR("Component::ScrollToBottom current scollable component has no child");
         return;
     }
 
     OHOS::Ace::Platform::ComponentInfo flex = componentInfo_.children.front();
     HILOG_DEBUG("Component::scrollToBottom flex.size:%d", flex.children.size());
     if (flex.children.size() < 1) {
-        HILOG_WARN("Component::ScrollToBottom flex has no child");
+        HILOG_ERROR("Component::ScrollToBottom flex has no child");
         return;
     }
 
     if (flex.children.back().top <= (componentInfo_.top + componentInfo_.height)) {
-        HILOG_WARN("Component::ScrollToBottom component is already in the bottom");
+        HILOG_ERROR("Component::ScrollToBottom component is already in the bottom");
         return;
     }
 
