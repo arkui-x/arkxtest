@@ -37,6 +37,7 @@ constexpr int ERRNO_NOERR = 0;
 constexpr int ARKX_TEST_TAG = 17000000;
 
 enum ErrCodeSuffixOfArkUITest {
+    E_INITIALIZE = ARKX_TEST_TAG + 1,
     E_AWAIT = ARKX_TEST_TAG + 2,
     E_ASSERTFAILD = ARKX_TEST_TAG + 3,
     E_DESTROYED = ARKX_TEST_TAG + 4,

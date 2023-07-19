@@ -1001,14 +1001,16 @@ napi_value DriverNExporter::CreateDriver(napi_env env, napi_callback_info info)
     HILOG_DEBUG("Uitest::CreateDriver begin");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ZERO)) {
-        HILOG_ERROR("Start Number of arguments unmatched");
+        HILOG_ERROR("CreateDriver Number of arguments unmatched");
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
     }
 
     napi_value thisVar = NClass::InstantiateClass(env, DriverNExporter::DRIVER_CLASS_NAME, {});
     if (thisVar == nullptr) {
-        return NVal::CreateUndefined(env).val_;
+        HILOG_ERROR("CreateDriver failed to initialize.");
+        NError(E_INITIALIZE).ThrowErr(env);
+        return nullptr;
     }
 
     HILOG_DEBUG("Uitest::CreateDriver end");

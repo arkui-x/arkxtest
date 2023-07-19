@@ -502,59 +502,6 @@ void Component::SetComponentInfo(const OHOS::Ace::Platform::ComponentInfo& com)
     componentInfo_ = com;
 }
 
-unique_ptr<Component> Component::ScrollSearch(const On& on)
-{
-    HILOG_DEBUG("Component::ScrollSearch");
-    auto component = make_unique<Component>();
-
-    auto uiContent = GetUIContent();
-    CHECK_NULL_RETURN(uiContent, component);
-
-    OHOS::Ace::Platform::ComponentInfo info;
-    uiContent->GetAllComponents(0, info);
-
-    Driver driver;
-    component = driver.FindComponent(on);
-
-    if (component == nullptr) {
-        HILOG_DEBUG("Component::ScrollSearch component is not find");
-        return component;
-    }
-
-    if (!IsScrollable().get()) {
-        HILOG_DEBUG("Component::ScrollSearch component is visible");
-        return component;
-    }
-
-    auto rootTop = info.top;
-    auto rootBottom = info.top + info.height;
-    auto componentTop = component->componentInfo_.top;
-    auto componentBottom = component->componentInfo_.top + component->componentInfo_.height;
-
-    if (componentTop < rootTop) {
-        auto distance = rootTop - componentTop;
-        auto startX = info.left + info.width / 2;
-        auto startY = info.top + info.height / 2;
-        auto stepLen = std::min(distance / 2, info.height / 4);
-        auto steps = distance / stepLen + 1;
-        for (int step = 0; step < steps; step++) {
-            driver.Swipe(startX, startY, startX, startY + stepLen, 200);
-        }
-    }
-
-    if (componentBottom > rootBottom) {
-        auto distance = componentBottom - rootBottom;
-        auto startX = info.left + info.width / 2;
-        auto startY = info.top + info.height / 2;
-        auto stepLen = std::min(distance / 2, info.height / 4);
-        auto steps = distance / stepLen + 1;
-        for (int step = 0; step < steps; step++) {
-            driver.Swipe(startX, startY, startX, startY - stepLen, 200);
-        }
-    }
-    return component;
-}
-
 Point Component::GetBoundsCenter()
 {
     HILOG_DEBUG("Component::GetBoundsCenter");
@@ -574,6 +521,7 @@ On* On::Text(const string& text, MatchPattern pattern)
         this->pattern_ = pattern;
         HILOG_DEBUG("On::Text success");
     }
+    this->isEnter = true;
     return this;
 }
 
@@ -581,6 +529,7 @@ On* On::Id(const string& id)
 {
     HILOG_DEBUG("On::Onid");
     this->id = std::make_shared<string>(id);
+    this->isEnter = true;
     return this;
 }
 
@@ -588,6 +537,7 @@ On* On::Type(const string& type)
 {
     HILOG_DEBUG("On::Ontype");
     this->type = std::make_shared<string>(type);
+    this->isEnter = true;
     return this;
 }
 
@@ -595,6 +545,7 @@ On* On::Enabled(bool enabled)
 {
     HILOG_DEBUG("On::Onenabled");
     this->enabled = std::make_shared<bool>(enabled);
+    this->isEnter = true;
     return this;
 }
 
@@ -602,6 +553,7 @@ On* On::Focused(bool focused)
 {
     HILOG_DEBUG("Ons::Onfocused");
     this->focused = std::make_shared<bool>(focused);
+    this->isEnter = true;
     return this;
 }
 
@@ -609,6 +561,7 @@ On* On::Selected(bool selected)
 {
     HILOG_DEBUG("Driver::Onselected");
     this->selected = std::make_shared<bool>(selected);
+    this->isEnter = true;
     return this;
 }
 
@@ -616,6 +569,7 @@ On* On::Clickable(bool clickable)
 {
     HILOG_DEBUG("Driver::Onclickable");
     this->clickable = std::make_shared<bool>(clickable);
+    this->isEnter = true;
     return this;
 }
 
@@ -623,6 +577,7 @@ On* On::LongClickable(bool longClickable)
 {
     HILOG_DEBUG("Driver::OnlongClickable");
     this->longClickable = std::make_shared<bool>(longClickable);
+    this->isEnter = true;
     return this;
 }
 
@@ -630,6 +585,7 @@ On* On::Scrollable(bool scrollable)
 {
     HILOG_DEBUG("Driver::Onscrollable");
     this->scrollable = std::make_shared<bool>(scrollable);
+    this->isEnter = true;
     return this;
 }
 
@@ -637,6 +593,7 @@ On* On::Checkable(bool checkable)
 {
     HILOG_DEBUG("Driver::Oncheckable");
     this->checkable = std::make_shared<bool>(checkable);
+    this->isEnter = true;
     return this;
 }
 
@@ -644,6 +601,7 @@ On* On::Checked(bool checked)
 {
     HILOG_DEBUG("Driver::Onchecked");
     this->checked = std::make_shared<bool>(checked);
+    this->isEnter = true;
     return this;
 }
 
@@ -663,8 +621,7 @@ bool On::CompareText(const string& text) const
 
 bool operator == (const On& on, const OHOS::Ace::Platform::ComponentInfo& info)
 {
-    if (!on.id && !on.text && !on.type && !on.clickable && !on.longClickable && !on.scrollable && !on.enabled &&
-        !on.focused && !on.selected && !on.checked && !on.checkable) {
+    if (!on.isEnter) {
         return false;
     }
     bool res = true;
@@ -730,23 +687,39 @@ unique_ptr<Component> Driver::FindComponent(const On& on)
     OHOS::Ace::Platform::ComponentInfo ret;
     GetComponentvalue(info, on, ret);
     if (ret.left < 1 && ret.top < 1 && ret.width < 1 && ret.height < 1) {
-        HILOG_DEBUG("not  find Component");
+        HILOG_ERROR("not find Component");
+        return nullptr;
+    }
+
+    auto rootTop = info.top;
+    auto rootBottom = info.top + info.height;
+    auto componentTop = ret.top;
+    auto componentBottom = ret.top + ret.height;
+    if (componentBottom < rootTop || componentTop > rootBottom) {
+        HILOG_ERROR("find Component, but is not visible");
         return nullptr;
     }
     component->SetComponentInfo(ret);
     return component;
 }
 
-void GetComponentvalues(OHOS::Ace::Platform::ComponentInfo& info, const On& on,
+void GetComponentvalues(OHOS::Ace::Platform::ComponentInfo& info, const On& on, std::vector<float>& rootrange,
     vector<unique_ptr<Component>>& components)
-{
+{    
     if (on == info) {
-        auto component = make_unique<Component>();
-        component->SetComponentInfo(info);
-        components.push_back(move(component));
+        auto componentTop = info.top;
+        auto componentBottom = info.top + info.height;
+        if(componentTop >= rootrange[0] && componentBottom <= rootrange[1]) {
+            auto component = make_unique<Component>();
+            component->SetComponentInfo(info);
+            components.push_back(move(component));
+        } else {
+            HILOG_DEBUG("Component not in viewable area.");
+        }
     }
+
     for (auto& child : info.children) {
-        GetComponentvalues(child, on, components);
+        GetComponentvalues(child, on, rootrange, components);
     }
 }
 
@@ -757,9 +730,57 @@ vector<unique_ptr<Component>> Driver::FindComponents(const On& on)
     OHOS::Ace::Platform::ComponentInfo info;
     auto uiContent = GetUIContent();
     uiContent->GetAllComponents(0, info);
-    GetComponentvalues(info, on, components);
-    HILOG_DEBUG("Driver::FindComponents");
+    std::vector<float> rootrange;
+    rootrange.push_back(info.top);
+    rootrange.push_back(info.top + info.height);
+    GetComponentvalues(info, on, rootrange, components);
+    HILOG_DEBUG("Driver::FindComponents end");
     return components;
 }
 
+unique_ptr<Component> Component::ScrollSearch(const On& on)
+{
+    HILOG_DEBUG("Component::ScrollSearch");
+    OHOS::Ace::Platform::ComponentInfo ret;
+    GetComponentvalue(componentInfo_, on, ret);
+    if (ret.left < 1 && ret.top < 1 && ret.width < 1 && ret.height < 1) {
+        HILOG_ERROR("not find Component");
+        return nullptr;
+    }
+
+    Driver driver;
+    auto rootTop = componentInfo_.top;
+    auto componentTop = ret.top;
+    auto rootBottom = componentInfo_.top + componentInfo_.height;
+    auto componentBottom = ret.top + ret.height;
+    if ((componentBottom < rootTop || componentTop > rootBottom) && !IsScrollable().get()) {
+        HILOG_ERROR("not find Component, and this component is not scrollable");
+        return nullptr;
+    }
+
+    if (componentTop < rootTop && IsScrollable().get()) {
+        auto distance = rootTop - componentTop;
+        auto startX = componentInfo_.left + componentInfo_.width / 2;
+        auto startY = componentInfo_.top + componentInfo_.height / 2;
+        auto stepLen = std::min(distance / 2, componentInfo_.height / 4);
+        auto steps = distance / stepLen + 1;
+        for (int step = 0; step < steps; step++) {
+            driver.Swipe(startX, startY, startX, startY + stepLen, 200);
+        }
+    }
+
+    if (componentBottom > rootBottom && IsScrollable().get()) {
+        auto distance = componentBottom - rootBottom;
+        auto startX = componentInfo_.left + componentInfo_.width / 2;
+        auto startY = componentInfo_.top + componentInfo_.height / 2;
+        auto stepLen = std::min(distance / 2, componentInfo_.height / 4);
+        auto steps = distance / stepLen + 1;
+        for (int step = 0; step < steps; step++) {
+            driver.Swipe(startX, startY, startX, startY - stepLen, 200);
+        }
+    }
+    auto component = make_unique<Component>();
+    component->SetComponentInfo(ret);
+    return component;
+}
 } // namespace OHOS::UiTest
