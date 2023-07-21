@@ -64,8 +64,6 @@ ohos_source_set("uitest_core_static") {
 
   deps = [ "$plugins_root/libs/napi:napi_${target_os}" ]
 
-  use_exceptions = true
-
   if (is_standard_system) {
     external_deps = [ "hiviewdfx_hilog_native:libhilog" ]
   } else {

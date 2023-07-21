@@ -93,6 +93,7 @@ public:
     MatchPattern pattern_ = MatchPattern::EQUALS;
 
     bool CompareText(const string& text) const;
+    bool isEnter = false;
 };
 
 bool operator == (const On& on, const OHOS::Ace::Platform::ComponentInfo& info);
