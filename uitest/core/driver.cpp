@@ -614,7 +614,10 @@ bool On::CompareText(const string& text) const
     } else if (this->pattern_ == MatchPattern::STARTS_WITH) {
         return text.find(*this->text) == 0;
     } else if (this->pattern_ == MatchPattern::ENDS_WITH) {
-        return (text.find(*this->text) == (text.length() - this->text->length()));
+        auto ret = text.find(*this->text);
+        if ( ret != -1) {
+            return (ret == (text.length() - this->text->length()));
+        }
     }
     return false;
 }
