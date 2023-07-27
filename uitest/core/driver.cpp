@@ -29,6 +29,7 @@ namespace OHOS::UiTest {
 using namespace std;
 
 static constexpr const int32_t DOUBLE_CLICK = 2;
+static constexpr const int32_t VIEW_SIZE = 2;
 static constexpr const char UPPER_A = 'A';
 static constexpr const char LOWER_A = 'a';
 static constexpr const char DEF_NUMBER = '0';
@@ -664,17 +665,24 @@ bool operator == (const On& on, const OHOS::Ace::Platform::ComponentInfo& info)
     return res;
 }
 
-void GetComponentvalue(OHOS::Ace::Platform::ComponentInfo& component,
-    const On& on, OHOS::Ace::Platform::ComponentInfo& ret)
+static void GetComponentvalue(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
+     OHOS::Ace::Platform::ComponentInfo& ret, std::vector<float>& rootrange)
 {
     if (on == component) {
+        auto componentTop = component.top;
+        auto componentBottom = component.top + component.height;
         ret = component;
-        HILOG_DEBUG("GetComponentvalue return");
-        return;
+        if (rootrange.size() == 0) {
+            HILOG_DEBUG("GetComponentvalue return invisible ");
+            return;
+        } else if (rootrange.size() == VIEW_SIZE && componentTop >= rootrange[0] && componentBottom <= rootrange[1]) {
+            HILOG_DEBUG("GetComponentvalue return visible");
+            return;
+        }
     }
 
     for (auto& child : component.children) {
-        GetComponentvalue(child, on, ret);
+        GetComponentvalue(child, on, ret, rootrange);
     }
 }
 
@@ -686,22 +694,17 @@ unique_ptr<Component> Driver::FindComponent(const On& on)
     auto uiContent = GetUIContent();
     CHECK_NULL_RETURN(uiContent, nullptr);
     uiContent->GetAllComponents(0, info);
+    std::vector<float> rootrange;
+    rootrange.push_back(info.top);
+    rootrange.push_back(info.top + info.height);
     HILOG_DEBUG("GetAllComponents ok");
     OHOS::Ace::Platform::ComponentInfo ret;
-    GetComponentvalue(info, on, ret);
+    GetComponentvalue(info, on, ret, rootrange);
     if (ret.left < 1 && ret.top < 1 && ret.width < 1 && ret.height < 1) {
         HILOG_ERROR("not find Component");
         return nullptr;
     }
 
-    auto rootTop = info.top;
-    auto rootBottom = info.top + info.height;
-    auto componentTop = ret.top;
-    auto componentBottom = ret.top + ret.height;
-    if (componentBottom < rootTop || componentTop > rootBottom) {
-        HILOG_ERROR("find Component, but is not visible");
-        return nullptr;
-    }
     component->SetComponentInfo(ret);
     return component;
 }
@@ -745,7 +748,8 @@ unique_ptr<Component> Component::ScrollSearch(const On& on)
 {
     HILOG_DEBUG("Component::ScrollSearch");
     OHOS::Ace::Platform::ComponentInfo ret;
-    GetComponentvalue(componentInfo_, on, ret);
+    std::vector<float> rootrange;
+    GetComponentvalue(componentInfo_, on, ret, rootrange);
     if (ret.left < 1 && ret.top < 1 && ret.width < 1 && ret.height < 1) {
         HILOG_ERROR("not find Component");
         return nullptr;
