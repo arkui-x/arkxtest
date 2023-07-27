@@ -25,9 +25,39 @@ namespace UiTest {
 namespace LibN {
 using namespace std;
 
+static napi_value GenerateBusinessError(napi_env env, int32_t errCode, string errMsg)
+{
+    napi_value businessError = nullptr;
+    napi_value code = nullptr;
+    napi_value msg = nullptr;
+    napi_status status;
+    code = NVal::CreateInt32(env, errCode).val_;
+    msg = NVal::CreateUTF8String(env, errMsg).val_;
+    status = napi_create_error(env, nullptr, msg, &businessError);
+    if (status != napi_ok) {
+        HILOG_ERROR("Failed to create a BusinessError, error message is %{public}s", errMsg.c_str());
+        return nullptr;
+    }
+    status = napi_set_named_property(env, businessError, UITEST_TAG_ERR_CODE.c_str(), code);
+    if (status != napi_ok) {
+        HILOG_ERROR("Failed to set code property on Error, error message is %{public}s", errMsg.c_str());
+        return nullptr;
+    }
+    return businessError;
+}
+
 NError::NError() {}
 
-NError::NError(int ePosix) : errno_(ePosix), errMsg_(strerror(errno_)) {}
+NError::NError(int errCode)
+{
+    if (errCodeTable.find(errCode) != errCodeTable.end()) {
+        errno_ = errCodeTable.at(errCode).first;
+        errMsg_ = errCodeTable.at(errCode).second;
+    } else {
+        errno_ = errCode;
+        errMsg_ = "Unknown error";
+    }
+}
 
 NError::NError(std::function<std::tuple<uint32_t, std::string>()> errGen)
 {
@@ -41,15 +71,73 @@ NError::operator bool() const
 
 napi_value NError::GetNapiErr(napi_env env)
 {
-    napi_value code = NVal::CreateUTF8String(env, to_string(errno_)).val_;
-    napi_value msg = NVal::CreateUTF8String(env, errMsg_).val_;
-
-    napi_value res = nullptr;
-    napi_status createRes = napi_create_error(env, code, msg, &res);
-    if (createRes) {
-        HILOG_ERROR("Failed to create an exception, msg = %{public}s", errMsg_.c_str());
+    if (errno_ == ERRNO_NOERR) {
+        return nullptr;
     }
-    return res;
+    return GenerateBusinessError(env, errno_, errMsg_);
+}
+
+napi_value NError::GetNapiErr(napi_env env, int errCode)
+{
+    if (errCode == ERRNO_NOERR) {
+        return nullptr;
+    }
+    int32_t code = 0;
+    string msg;
+    if (errCodeTable.find(errCode) != errCodeTable.end()) {
+        code = errCodeTable.at(errCode).first;
+        msg = errCodeTable.at(errCode).second;
+    } else {
+        code = errCodeTable.at(UNKROWN_ERR).first;
+        msg = errCodeTable.at(UNKROWN_ERR).second;
+    }
+    errno_ = code;
+    errMsg_ = msg;
+    return GenerateBusinessError(env, code, msg);
+}
+
+napi_value NError::GetNapiErrAddData(napi_env env, int errCode, napi_value data)
+{
+    if (errCode == ERRNO_NOERR) {
+        return nullptr;
+    }
+    int32_t code = 0;
+    string msg;
+    if (errCodeTable.find(errCode) != errCodeTable.end()) {
+        code = errCodeTable.at(errCode).first;
+        msg = errCodeTable.at(errCode).second;
+    } else {
+        code = errCodeTable.at(UNKROWN_ERR).first;
+        msg = errCodeTable.at(UNKROWN_ERR).second;
+    }
+    errno_ = code;
+    errMsg_ = msg;
+    napi_value businessError = GenerateBusinessError(env, code, msg);
+    napi_status status = napi_set_named_property(env, businessError, UITEST_TAG_ERR_DATA.c_str(), data);
+    if (status != napi_ok) {
+        HILOG_ERROR("Failed to set data property on Error, error message is %{public}s", msg.c_str());
+        return nullptr;
+    }
+    return businessError;
+}
+
+void NError::ThrowErr(napi_env env, int errCode)
+{
+    int32_t code = 0;
+    string msg;
+    if (errCodeTable.find(errCode) != errCodeTable.end()) {
+        code = errCodeTable.at(errCode).first;
+        msg = errCodeTable.at(errCode).second;
+    } else {
+        code = errCodeTable.at(UNKROWN_ERR).first;
+        msg = errCodeTable.at(UNKROWN_ERR).second;
+    }
+    errno_ = code;
+    errMsg_ = msg;
+    napi_status status = napi_throw(env, GenerateBusinessError(env, code, msg));
+    if (status != napi_ok) {
+        HILOG_ERROR("Failed to throw a BusinessError, error message is %{public}s", msg.c_str());
+    }
 }
 
 void NError::ThrowErr(napi_env env, string errMsg)
@@ -59,13 +147,44 @@ void NError::ThrowErr(napi_env env, string errMsg)
     // Note that ace engine cannot thow errors created by napi_create_error so far
     napi_status throwStatus = napi_throw_error(env, nullptr, errMsg.c_str());
     if (throwStatus != napi_ok) {
-        HILOG_ERROR("Failed to throw an exception, %{public}d, code = %{public}s", throwStatus, errMsg.c_str());
+        HILOG_ERROR("Failed to throw an Error, error message is %{public}s", errMsg.c_str());
+    }
+}
+
+void NError::ThrowErrAddData(napi_env env, int errCode, napi_value data)
+{
+    int32_t code = 0;
+    string msg;
+    if (errCodeTable.find(errCode) != errCodeTable.end()) {
+        code = errCodeTable.at(errCode).first;
+        msg = errCodeTable.at(errCode).second;
+    } else {
+        code = errCodeTable.at(UNKROWN_ERR).first;
+        msg = errCodeTable.at(UNKROWN_ERR).second;
+    }
+    errno_ = code;
+    errMsg_ = msg;
+    napi_value businessError = GenerateBusinessError(env, code, msg);
+    napi_status status = napi_set_named_property(env, businessError, UITEST_TAG_ERR_DATA.c_str(), data);
+    if (status != napi_ok) {
+        HILOG_ERROR("Failed to set data property on Error, error message is %{public}s", msg.c_str());
+        return;
+    }
+    status = napi_throw(env, businessError);
+    if (status != napi_ok) {
+        HILOG_ERROR("Failed to throw a BusinessError, error message is %{public}s", msg.c_str());
+        return;
     }
 }
 
 void NError::ThrowErr(napi_env env)
 {
-    ThrowErr(env, errMsg_);
+    napi_value tmp = nullptr;
+    napi_get_and_clear_last_exception(env, &tmp);
+    napi_status status = napi_throw(env, GenerateBusinessError(env, errno_, errMsg_));
+    if (status != napi_ok) {
+        HILOG_ERROR("Failed to throw a BusinessError, error message is %{public}s", errMsg_.c_str());
+    }
 }
 } // namespace LibN
 } // namespace UiTest
