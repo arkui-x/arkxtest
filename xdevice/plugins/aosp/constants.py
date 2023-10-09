@@ -36,4 +36,4 @@ class UsbConst:
 
 @dataclass
 class CKit:
-    install = "ApKInstallKit"
+    install = "ApkInstallKit"

@@ -245,56 +245,52 @@ class UserConfigManager(object):
             return data_dic
         return self.get_device(target_name)
 
+    def get_testcases_dir(self):
+        from xdevice import Variables
+        testcases_dir = self.get_testcases_dir_config()
+        if testcases_dir:
+            if os.path.isabs(testcases_dir):
+                return testcases_dir
+            return os.path.abspath(os.path.join(Variables.exec_dir,
+                                                testcases_dir))
 
-def get_testcases_dir(self):
-    from xdevice import Variables
-    testcases_dir = self.get_testcases_dir_config()
-    if testcases_dir:
-        if os.path.isabs(testcases_dir):
-            return testcases_dir
-        return os.path.abspath(os.path.join(Variables.exec_dir,
-                                            testcases_dir))
+        return os.path.abspath(os.path.join(Variables.exec_dir, "testcases"))
 
-    return os.path.abspath(os.path.join(Variables.exec_dir, "testcases"))
+    def get_resource_path(self):
+        from xdevice import Variables
+        data_dic = self.get_user_config_list("resource")
+        if "dir" in data_dic.keys():
+            resource_dir = data_dic.get("dir", "")
+            if resource_dir:
+                if os.path.isabs(resource_dir):
+                    return resource_dir
+                return os.path.abspath(
+                    os.path.join(Variables.exec_dir, resource_dir))
 
+        return os.path.abspath(
+            os.path.join(Variables.exec_dir, "resource"))
 
-def get_resource_path(self):
-    from xdevice import Variables
-    data_dic = self.get_user_config_list("resource")
-    if "dir" in data_dic.keys():
-        resource_dir = data_dic.get("dir", "")
-        if resource_dir:
-            if os.path.isabs(resource_dir):
-                return resource_dir
-            return os.path.abspath(
-                os.path.join(Variables.exec_dir, resource_dir))
+    def get_log_level(self):
+        data_dic = {}
+        node = self.config_content.find("loglevel")
+        if node is not None:
+            if node.find("console") is None and node.find("file") is None:
+                # neither loglevel/console nor loglevel/file exists
+                data_dic.update({"console": str(node.text).strip()})
+            else:
+                for child in node:
+                    data_dic.update({child.tag: str(child.text).strip()})
+        return data_dic
 
-    return os.path.abspath(
-        os.path.join(Variables.exec_dir, "resource"))
-
-
-def get_log_level(self):
-    data_dic = {}
-    node = self.config_content.find("loglevel")
-    if node is not None:
-        if node.find("console") is None and node.find("file") is None:
-            # neither loglevel/console nor loglevel/file exists
-            data_dic.update({"console": str(node.text).strip()})
-        else:
-            for child in node:
-                data_dic.update({child.tag: str(child.text).strip()})
-    return data_dic
-
-
-def get_device_log_status(self):
-    data_dic = {}
-    node = self.config_content.find("devicelog")
-    if node is not None:
-        if node.find(ConfigConst.tag_enable) is not None \
-                or node.find(ConfigConst.tag_dir) is not None:
-            for child in node:
-                data_dic.update({child.tag: str(child.text).strip()})
-        else:
-            data_dic.update({ConfigConst.tag_enable: str(node.text).strip()})
-            data_dic.update({ConfigConst.tag_dir: None})
-    return data_dic
+    def get_device_log_status(self):
+        data_dic = {}
+        node = self.config_content.find("devicelog")
+        if node is not None:
+            if node.find(ConfigConst.tag_enable) is not None \
+                    or node.find(ConfigConst.tag_dir) is not None:
+                for child in node:
+                    data_dic.update({child.tag: str(child.text).strip()})
+            else:
+                data_dic.update({ConfigConst.tag_enable: str(node.text).strip()})
+                data_dic.update({ConfigConst.tag_dir: None})
+        return data_dic

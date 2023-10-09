@@ -393,6 +393,10 @@ class DeviceAosp(IDevice):
     def get_device_report_path(self):
         return self._device_report_path
 
+    @classmethod
+    def check_recover_result(cls, recover_result):
+        return "1" == recover_result
+
     def take_picture(self, name):
         pass
 

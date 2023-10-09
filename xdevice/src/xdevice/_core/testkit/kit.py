@@ -244,8 +244,7 @@ def get_app_name_by_tool(app_path, paths):
     if app_path:
         proc_timer = None
         try:
-            tool_file = get_file_absolute_path(os.path.join(
-                "tools", aapt_tool_name), paths)
+            tool_file = get_file_absolute_path(aapt_tool_name, paths)
             LOG.debug("Aapt file is %s" % tool_file)
 
             if platform.system() == "Linux" or platform.system() == "Darwin":
