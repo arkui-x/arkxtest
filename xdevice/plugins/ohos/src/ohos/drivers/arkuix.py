@@ -51,7 +51,7 @@ __all__ = ["ARKUIXJSUnitTestDriver"]
 
 LOG = platform_logger("ARKUIX")
 
-TIME_OUT = 300 * 10000
+TIME_OUT = 300 * 1000
 
 
 @Plugin(type=Plugin.DRIVER, id=DeviceTestType.arkuix_jsunit_test)
@@ -101,7 +101,7 @@ class ARKUIXJSUnitTestDriver(IDriver):
             LOG.debug("Test case file path: {}".format(suite_file))
             self.config.device.set_device_report_path(request.config.report_path)
             self.config.device.device_log_collector.clear_crash_log()
-            log_level = self.config.device_log.get(ConfigConst.tag_enable, "DEBUG")
+            log_level = self.config.device_log.get(ConfigConst.tag_loglevel, "DEBUG")
             if self.config.device.device_os_type == DeviceOsType.ios:
                 self.device_log = get_device_log_file(request.config.report_path,
                                                       "{}_{}".format(request.config.device.__get_serial__(),
@@ -150,11 +150,11 @@ class ARKUIXJSUnitTestDriver(IDriver):
                     "Error: Test cases don't exist {}.".format(config_file),
                     error_no="00102")
             json_config = JsonParser(config_file)
+            self.runner = ARKUIXJSUnitTestRunner(self.config)
             self.kits = get_kit_instances(json_config,
                                           self.config.resource_path,
                                           self.config.testcases_path)
             self._get_driver_config(json_config)
-            self.runner = ARKUIXJSUnitTestRunner(self.config)
             do_module_kit_setup(request, self.kits)
             self.runner.suites_name = request.get_module_name()
             if hasattr(self.config, "history_report_path") and self.config.testargs.get("test"):
@@ -162,7 +162,7 @@ class ARKUIXJSUnitTestDriver(IDriver):
             else:
                 if self.rerun:
                     self.runner.retry_times = self.runner.MAX_RETRY_TIMES
-                    # execute test case
+                # execute test case
                 app_file = self.config.testargs.get("app_file")
                 if app_file:
                     self._do_test_run(listener=request.listeners, path=app_file)
@@ -223,6 +223,7 @@ class ARKUIXJSUnitTestDriver(IDriver):
     def _handle_logs(self, request):
         serial = "crash_log_{}_{}".format(str(self.config.device.__get_serial__()), time.time_ns())
         log_tar_file_name = "{}".format(str(serial).replace(":", "_"))
+        self.config.device.device_log_collector.start_get_crash_log(log_tar_file_name)
         if self.config.device.device_os_type == DeviceOsType.ios:
             self.config.device.device_log_collector.remove_log_address(self.device_log)
         else:

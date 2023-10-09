@@ -73,7 +73,7 @@ class ManagerIosDevice(IDeviceManager, IFilter):
     def _start_device_monitor(self, environment="", user_config_file=""):
         self.managed_device_listener = ManagedDeviceListener(self)
         device = UserConfigManager(
-            config_file=user_config_file, env=environment).get_device(
+            config_file=user_config_file, env=environment).get_ios_device(
             "environment/device")
         if device:
             try:
@@ -113,6 +113,7 @@ class ManagerIosDevice(IDeviceManager, IFilter):
                 if device.device_sn == idevice.device_sn and \
                         device.device_os_type == idevice.device_os_type:
                     return device
+            return None
         finally:
             LOG.debug("Find: release list con lock")
             self.list_con.release()
@@ -131,7 +132,6 @@ class ManagerIosDevice(IDeviceManager, IFilter):
                 self.lock_con.wait(timeout)
             else:
                 self.lock_con.wait(self.wait_times)
-            LOG.debug("Wait for available device founded")
             return self.allocate_device_option(device_option)
         finally:
             LOG.debug("Apply device: release lock con lock")
@@ -148,7 +148,7 @@ class ManagerIosDevice(IDeviceManager, IFilter):
             return None
         try:
             allocated_device = None
-            LOG.debug("Require device label is: %s" % device_option.label)
+            LOG.debug("Require device label is: {}".format(device_option.label))
             for device in self.devices_list:
                 if device_option.matches(device):
                     self.handle_device_event(device,
@@ -200,6 +200,7 @@ class ManagerIosDevice(IDeviceManager, IFilter):
             if device.device_sn == device_sn and \
                     device.device_os_type == device_os_type:
                 return device
+        return None
 
     def append_device_by_sort(self, device_instance):
         if (not self.global_device_filter or
@@ -248,8 +249,7 @@ class ManagerIosDevice(IDeviceManager, IFilter):
                         device_instance.device_state)
                 device_instance.device_state_monitor = \
                     DeviceStateMonitor(device_instance)
-                if idevice.device_state == DeviceState.ONLINE or \
-                        idevice.device_state == DeviceState.CONNECTED:
+                if idevice.device_state == DeviceState.ONLINE:
                     device_instance.get_device_type()
                 self.append_device_by_sort(device_instance)
                 device = device_instance
@@ -262,6 +262,7 @@ class ManagerIosDevice(IDeviceManager, IFilter):
         except HdcCommandRejectedException as hcr_error:
             LOG.debug("{} occurs error. Reason:{}".format
                       (idevice.device_sn, hcr_error))
+            return None
         finally:
             LOG.debug("Find or create: release list con lock")
             self.list_con.release()
@@ -327,6 +328,7 @@ class ManagerIosDevice(IDeviceManager, IFilter):
                 device.label if device.label else 'None',
                 device.host, device.port))
         self.device_connector.monitor_lock.release()
+        return ""
 
     @staticmethod
     def convert_sn(device_sn):

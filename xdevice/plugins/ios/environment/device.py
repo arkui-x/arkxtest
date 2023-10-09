@@ -38,7 +38,7 @@ from xdevice import stop_standing_subprocess
 from xdevice import Platform
 
 from ios.environment.dmlib import IosHelper
-from ios.constants.dmlib import UsbConst
+from ios.constants import UsbConst
 
 __all__ = ["DeviceIos"]
 TIMEOUT = 300 * 1000
@@ -121,7 +121,7 @@ class DeviceIos(IDevice):
     _device_log_collector = None
     model_dict = {
         'default': ProductForm.phone,
-        'tablet': ProductForm.tablet
+        'tablet': ProductForm.tablet,
     }
 
     def __init__(self):
@@ -187,7 +187,7 @@ class DeviceIos(IDevice):
             return False
 
         LOG.debug("Wait device {} to recover".format(self.device_sn))
-        result = self.device_state_monitor.wait_for_device_available()
+        result = self.device_state_monitor.wait_for_device_available(self.reboot_timeout)
         if result:
             self.device_log_collector.restart_catch_device_log()
         return result
@@ -235,7 +235,7 @@ class DeviceIos(IDevice):
         command = []
 
         if package_name:
-            command.extend(["--bundle", package_name])
+            command.extend(["--bundle_id", package_name])
         else:
             command.append("-f")
         if pathlib.Path(remote).is_dir():
@@ -245,7 +245,7 @@ class DeviceIos(IDevice):
 
         is_create = kwargs.get("is_create", False)
         timeout = kwargs.get("timeout", TIMEOUT)
-        return IosHelper.push_file(self, command, is_create=is_create, timeout=timeout)
+        return IosHelper.pull_file(self, command, is_create=is_create, timeout=timeout)
 
     def take_picture(self, name):
         pass
@@ -298,7 +298,7 @@ class DeviceLogCollector:
 
     def stop_restart_catch_device_log(self):
         # when device free stop restart log proc
-        for _, proc in enumerate(self.restart_proc):
+        for _, proc in enumerate(self.restart_log_proc):
             self.stop_catch_device_log(proc)
         self.restart_log_proc.clear()
         self.log_file_address.clear()

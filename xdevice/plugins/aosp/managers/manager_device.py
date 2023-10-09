@@ -114,6 +114,7 @@ class ManagerAospDevice(IDeviceManager, IFilter):
                 if device.device_sn == idevice.device_sn and \
                         device.device_os_type == idevice.device_os_type:
                     return device
+            return None
         finally:
             LOG.debug("Find: release list con lock")
             self.list_con.release()
@@ -127,12 +128,11 @@ class ManagerAospDevice(IDeviceManager, IFilter):
             if device:
                 return device
             LOG.debug("Wait for available device founded")
-            self.wait_times += 3
+            self.wait_times += 1
             if self.wait_times > timeout:
                 self.lock_con.wait(timeout)
             else:
                 self.lock_con.wait(self.wait_times)
-            LOG.debug("Wait for available device founded")
             return self.allocate_device_option(device_option)
         finally:
             LOG.debug("Apply device: release lock con lock")
@@ -201,6 +201,7 @@ class ManagerAospDevice(IDeviceManager, IFilter):
             if device.device_sn == device_sn and \
                     device.device_os_type == device_os_type:
                 return device
+        return None
 
     def append_device_by_sort(self, device_instance):
         if (not self.global_device_filter or
@@ -252,8 +253,7 @@ class ManagerAospDevice(IDeviceManager, IFilter):
                         device_instance.device_state)
                 device_instance.device_state_monitor = \
                     DeviceStateMonitor(device_instance)
-                if idevice.device_state == DeviceState.ONLINE or \
-                        idevice.device_state == DeviceState.CONNECTED:
+                if idevice.device_state == DeviceState.ONLINE:
                     device_instance.get_device_type()
                 self.append_device_by_sort(device_instance)
                 device = device_instance
@@ -266,6 +266,7 @@ class ManagerAospDevice(IDeviceManager, IFilter):
         except HdcCommandRejectedException as hcr_error:
             LOG.debug("{} occurs error. Reason:{}".format
                       (idevice.device_sn, hcr_error))
+            return None
         finally:
             LOG.debug("Find or create: release list con lock")
             self.list_con.release()
@@ -331,6 +332,7 @@ class ManagerAospDevice(IDeviceManager, IFilter):
                 device.label if device.label else 'None',
                 device.host, device.port))
         self.device_connector.monitor_lock.release()
+        return ""
 
     def __filter_selector__(self, selector):
         if isinstance(selector, DeviceSelector):

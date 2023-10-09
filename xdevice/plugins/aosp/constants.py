@@ -30,7 +30,7 @@ class UsbConst:
     shell = "adb shell"
     server_port = "ANDROID_ADB_SERVER_PORT"
     kill_server = "adb kill-server"
-    start_server = "adb start_server"
+    start_server = "adb start-server"
     reboot = "adb reboot"
 
 

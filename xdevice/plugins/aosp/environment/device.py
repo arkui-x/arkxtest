@@ -89,7 +89,7 @@ def perform_device_action(func):
                     cmd = ["hdc", "reset"]
                     self.log.info("re-execute hdc reset")
                 else:
-                    cmd = [UsbConst.connector_type, "start-server"]
+                    cmd = [UsbConst.connector, "start-server"]
                     self.log.info("re-execute {}".format(cmd))
                 exec_cmd(cmd)
                 callback_to_outer(self, "error:{}, prepare to recover".format(error))
@@ -192,7 +192,7 @@ class DeviceAosp(IDevice):
             return False
 
         LOG.debug("Wait device {} to recover".format(self.device_sn))
-        result = self.device_state_monitor.wait_for_device_available()
+        result = self.device_state_monitor.wait_for_device_available(self.reboot_timeout)
         if result:
             self.device_log_collector.restart_catch_device_log()
         return result
@@ -212,11 +212,11 @@ class DeviceAosp(IDevice):
             LOG.debug(stdout)
         return stdout
 
-    @staticmethod
+    @perform_device_action
     def connector_command(self, command, **kwargs):
         timeout = int(kwargs.get("timeout", TIMEOUT)) / 1000
-        error_print = bool(kwargs.get("error_print"), True)
-        join_result = bool(kwargs.get("join_result"), False)
+        error_print = bool(kwargs.get("error_print", True))
+        join_result = bool(kwargs.get("join_result", False))
         timeout_msg = '' if timeout == 300.0 else " with timeout {}s".format(timeout)
         if self.usb_type == DeviceConnectorType.hdc:
             LOG.debug("{} execute command hdc {}{}".format(convert_serial(self.device_sn), command, timeout_msg))
@@ -233,7 +233,7 @@ class DeviceAosp(IDevice):
             cmd.extend(command)
         else:
             command = command.strip()
-            command.extend(command.split(" "))
+            cmd.extend(command.split(" "))
         result = exec_cmd(cmd, timeout, error_print, join_result)
         if not result:
             return result
@@ -252,7 +252,7 @@ class DeviceAosp(IDevice):
             return AdbHelper.execute_shell_command(self, command, timeout=timeout, receiver=receiver, **kwargs)
 
     def execute_shell_cmd_background(self, command, timeout=TIMEOUT, receiver=None):
-        status = AdbHelper.execute_shell_command(self, command, timeout, receiver=receiver)
+        status = AdbHelper.execute_shell_command(self, command, timeout=timeout, receiver=receiver)
         self.wait_for_device_not_available(DEFAULT_UNAVAILABLE_TIMEOUT)
         self.device_state_monitor.wait_for_device_available(BACKGROUND_TIME)
         cmd = "target mount" if self.usb_type == DeviceConnectorType.hdc else "remount"
@@ -347,6 +347,13 @@ class DeviceAosp(IDevice):
             return True
         return False
 
+    def is_file_exist(self, file_path):
+        file_path = check_path_legal(file_path)
+        output = self.execute_shell_command("ls {}".format(file_path))
+        if output and "No such file or directory" not in output:
+            return True
+        return False
+
     def get_recover_result(self, retry=RETRY_ATTEMPTS):
         command = "getprop dev.bootcomplete"
         try:
@@ -409,7 +416,7 @@ class DeviceLogCollector:
 
     def restart_catch_device_log(self):
         if len(self.hilog_file_address) != len(self.log_file_address):
-            self.device.log.warinng("hilog address not equals to log address.")
+            self.device.log.warning("hilog address not equals to log address.")
             return
         from xdevice import FilePermission
         for index, _ in enumerate(self.log_file_address):
@@ -506,7 +513,7 @@ class DeviceLogCollector:
         else:
             log_path = "{}/log/crash_log_{}/".format(self.device.get_device_report_path(), task_name)
         if not os.path.exists(log_path):
-            os.mkdir(log_path)
+            os.makedirs(log_path)
         self.device.pull_file("/data/log/faultlog/faultlogger", log_path)
 
     def clear_crash_log(self):
@@ -524,13 +531,13 @@ class DeviceLogCollector:
         if log_file_address and log_file_address in self.log_file_address:
             self.log_file_address.remove(log_file_address)
         if hilog_file_address and hilog_file_address in self.hilog_file_address:
-            self.log_file_address.remove(hilog_file_address)
+            self.hilog_file_address.remove(hilog_file_address)
 
     def pull_extra_log_files(self, task_name, module_name, dirs: str):
         if dirs is None:
             return
-        dirs_list = dirs.strip(";")
-        for dir_path in dirs_list:
+        dir_list = dirs.split(";")
+        for dir_path in dir_list:
             extra_log_path = "{}/log/{}/{}_extra_log/".format(self.device.get_device_report_path(), module_name,
                                                               task_name)
             self.device.pull_file(dir_path, extra_log_path)

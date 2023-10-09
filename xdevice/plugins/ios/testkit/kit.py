@@ -19,7 +19,6 @@
 import os
 import plistlib
 import re
-from dataclasses import dataclass
 
 from xdevice import AppInstallError
 from xdevice import FilePermission
@@ -36,11 +35,6 @@ from ios.constants import CKit
 LOG = platform_logger("Kit")
 
 __all__ = ["IosAppInstallKit", "IosPushKit", "IosShellKit"]
-
-
-@dataclass
-class Props:
-    trying_remove_maximum_times = 3
 
 
 @Plugin(type=Plugin.TEST_KIT, id=CKit.ios_app_install)
@@ -215,26 +209,26 @@ class IosPushKit(ITestKit):
             for file_name in self.pushed_file:
                 LOG.debug("Trying to remove file {}".format(file_name))
                 file_name = file_name.replace("\\", "/")
-                bundle_id = file_name[1].strip().split("/")[1]
+                bundle_id = file_name.strip().split("/")[1]
                 if "." in bundle_id:
-                    dst = file_name[1].strip().replace("/" + bundle_id + "/", "")
+                    dst = file_name.strip().replace("/" + bundle_id + "/", "")
                 else:
                     bundle_id = None
-                    dst = file_name[1].strip()
+                    dst = file_name.strip()
 
                 if bundle_id:
                     command = ["--bundle_id", bundle_id, "--rm", dst]
                 else:
                     command = ["-f", "-R", dst]
 
-                for _ in range(Props.trying_remove_maximum_times):
+                for _ in range(3):
                     ret = device.execute_shell_command(command)
                     if "Error" not in ret:
                         LOG.debug(
                             "Removed file {} successfully".format(file_name))
                         break
-                    else:
-                        LOG.error("Failed to remove file {}".format(file_name))
+                else:
+                    LOG.error("Failed to remove file {}".format(file_name))
 
 
 @Plugin(type=Plugin.TEST_KIT, id=CKit.ios_shell)
@@ -262,9 +256,9 @@ class IosShellKit(ITestKit):
         LOG.debug("ShellKit teardown: device:{}".format(device.device_sn))
         if len(self.tear_down_command) == 0:
             LOG.info("No teardown_command to run, skipping!")
-        else:
-            for command in self.tear_down_command:
-                run_command(device, command)
+            return
+        for command in self.tear_down_command:
+            run_command(device, command)
 
 
 def get_app_name(app):
@@ -284,8 +278,8 @@ def run_command(device, command):
     LOG.debug("The command:{} is running".format(command))
     stdout = None
     if command.strip() == "reboot":
-        device.reboor()
+        device.reboot()
     else:
         stdout = device.execute_shell_command(command)
-    LOG.error("Run command result: {}".format(stdout if stdout else ""))
+    LOG.debug("Run command result: {}".format(stdout if stdout else ""))
     return stdout

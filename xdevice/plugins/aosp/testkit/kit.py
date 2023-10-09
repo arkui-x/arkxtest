@@ -16,8 +16,6 @@
 # limitations under the License.
 #
 
-from dataclasses import dataclass
-
 from xdevice import AppInstallError
 from xdevice import ITestKit
 from xdevice import Plugin
@@ -34,11 +32,6 @@ from aosp import RES_PATH
 LOG = platform_logger("Kit")
 
 __all__ = ["ApkInstallKit"]
-
-
-@dataclass
-class Props:
-    trying_remove_maximum_times = 3
 
 
 @Plugin(type=Plugin.TEST_KIT, id=CKit.install)
@@ -61,7 +54,7 @@ class ApkInstallKit(ITestKit):
         self.alt_dir = get_config_value('alt-dir', options, False)
         if self.alt_dir and self.alt_dir.startswith("resource/"):
             self.alt_dir = self.alt_dir[len("resource/"):]
-        self.ex_args = get_config_value('install-arg', options, False)
+        self.ex_args = get_config_value('install-arg', options)
         self.installed_app = set()
         self.paths = get_config_value('paths', options)
         self.is_pri_app = get_config_value('install-as-privapp', options, False, default=False)
@@ -104,7 +97,7 @@ class ApkInstallKit(ITestKit):
             if self.app_list_name and len(self.app_list_name) > 0:
                 for app_name in self.app_list_name:
                     result = device.uninstall_package(app_name)
-                    if result and (result.startwith("Success") or "successfully" in result):
+                    if result and (result.startswith("Success") or "successfully" in result):
                         LOG.debug("uninstalling package Success. result is {}".format(result))
                     else:
                         LOG.warning("Error uninstalling package {} {}".format(device.__get_serial__(), result))
@@ -113,7 +106,7 @@ class ApkInstallKit(ITestKit):
                     app_name = get_app_name_by_tool(app, [RES_PATH])
                     if app_name:
                         result = device.uninstall_package(app_name)
-                        if result and (result.startwith("Success") or "successfully" in result):
+                        if result and (result.startswith("Success") or "successfully" in result):
                             LOG.debug("uninstalling package Success. result is {}".format(result))
                         else:
                             LOG.warning("Error uninstalling package {} {}".format(device.__get_serial__(), result))

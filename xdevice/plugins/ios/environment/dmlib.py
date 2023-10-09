@@ -99,14 +99,14 @@ class IosMonitor:
             except Exception as _:
                 LOG.error("IosMonitor close socket exception")
         IosMonitor.MONITOR_MAP.clear()
-        LOG.debug("IosMonitor {} monitor stop!".format(IosMonitor.CONNECTOR_NAME))
+        LOG.debug("IosMonitor {} monitor stop!".format(IosHelper.CONNECTOR_NAME))
         LOG.debug("IosMonitor map is {}".format(IosMonitor.MONITOR_MAP))
 
     def loop_monitor(self):
         """
         Monitors the devices. This connects to the Debug Bridge
         """
-        LOG.debug("current connector name is {}".format(IosMonitor.CONNECTOR_NAME))
+        LOG.debug("current connector name is {}".format(IosHelper.CONNECTOR_NAME))
         while not self.is_stop:
             self.list_targets()
             time.sleep(1)
@@ -162,10 +162,8 @@ class IosMonitor:
         device_instance.host = self.channel.get("host")
         device_instance.port = self.channel.get("port")
         if self.changed:
-            LOG.debug("Dmlib get device instance {} {} {}".format
-                      (device_instance.device_sn,
-                       device_instance.host, device_instance.port))
-        device_instance.device_state = DeviceState.get_state(items[3])
+            LOG.debug("Dmlib get device instance {}".format(device_instance.device_sn))
+        device_instance.device_state = DeviceState.get_state("device")
         return device_instance
 
 

@@ -146,6 +146,7 @@ class AdbMonitor:
                 connector_name = UsbConst.connector
             else:
                 LOG.error("AdbMonitor can't find HDC or ADB, init device environment failed!")
+                return
         if not is_proc_running(connector_name, HDC_NAME):
             port = DEFAULT_PORT
             self.start_adb(connector=connector_name, local_port=self.channel.setdefault("port", port))
@@ -192,14 +193,14 @@ class AdbMonitor:
             except (socket.error, socket.gaierror, socket.timeout) as _:
                 LOG.error("AdbMonitor close socket exception")
         AdbMonitor.MONITOR_MAP.clear()
-        LOG.debug("AdbMonitor {} monitor stop!".format(AdbMonitor.CONNECTOR_NAME))
+        LOG.debug("AdbMonitor {} monitor stop!".format(AdbHelper.CONNECTOR_NAME))
         LOG.debug("AdbMonitor map is {}".format(AdbMonitor.MONITOR_MAP))
 
     def loop_monitor(self):
         """
         Monitors the devices. This connects to the Debug Bridge
         """
-        LOG.debug("current connector name is {}".format(AdbMonitor.CONNECTOR_NAME))
+        LOG.debug("current connector name is {}".format(AdbHelper.CONNECTOR_NAME))
         while not self.is_stop:
             try:
                 if self.main_adb_connection is None:
@@ -216,7 +217,7 @@ class AdbMonitor:
                         LOG.debug("AdbMonitor Connection attempts: {}".format(str(self.connection_attempt)))
                         time.sleep(2)
                     else:
-                        LOG.debug("AdbMonitor Connection to {} for device monitoring, main_adb_connection is {}".format(
+                        LOG.debug("AdbMonitor Connected to {} for device monitoring, main_adb_connection is {}".format(
                             AdbHelper.CONNECTOR_NAME, self.main_adb_connection))
                 self.track_devices()
             except (HdcError, Exception) as _:
@@ -232,21 +233,24 @@ class AdbMonitor:
             AdbHelper.CONNECTOR_NAME, AdbHelper.CONNECTOR_NAME, self.main_adb_connection))
 
     def device_list_monitoring(self):
-        request = AdbHelper.form_adb_requset("host:track-devices")
+        request = AdbHelper.form_adb_request("host:track-devices")
         AdbHelper.write(self.main_adb_connection, request)
         resp = AdbHelper.read_adb_response(self.main_adb_connection)
         if not resp.okay:
-            LOG.error("AdbMonitor execute command success:send device_list monitoring request")
+            LOG.error("AdbMonitor adb rejected shell command")
+            raise Exception(resp.message)
+        else:
+            LOG.debug("AdbMonitor execute command success:send device_list monitoring request")
         return True
 
-    def process_incoming_target_data(self, length):
+    def process_incoming_device_data(self, length):
         local_array_list = []
         if length > 0:
             data_buf = AdbHelper.read(self.main_adb_connection, length)
             data_str = AdbHelper.reply_to_string(data_buf)
             lines = data_str.split("\n")
             for line in lines:
-                items = line.strip().split("\n")
+                items = line.strip().split("\t")
                 if len(items) != 2:
                     continue
                 device_instance = self._get_device_instance(items, DeviceOsType.aosp)
@@ -259,11 +263,10 @@ class AdbMonitor:
         device_instance.__set_serial__(items[0])
         device_instance.host = self.channel.get("host")
         device_instance.port = self.channel.get("port")
-        if self.changed:
-            LOG.debug("Dmlib get device instance {} {} {}".format
-                      (device_instance.device_sn,
-                       device_instance.host, device_instance.port))
-        device_instance.device_state = DeviceState.get_state(items[3])
+        LOG.debug("Dmlib get device instance {} {} {}".format
+                  (device_instance.device_sn,
+                   device_instance.host, device_instance.port))
+        device_instance.device_state = DeviceState.get_state(items[1])
         return device_instance
 
     def update_devices(self, param_array_list):
@@ -280,8 +283,8 @@ class AdbMonitor:
                             local_device2.device_state:
                         local_device1.device_state = local_device2.device_state
                         self.server.device_changed(local_device1)
-                    param_array_list.remove(local_device2)
-                    break
+                        param_array_list.remove(local_device2)
+                        break
 
             if k == 0:
                 self.devices.remove(local_device1)
@@ -323,7 +326,7 @@ class AdbMonitor:
             LOG.debug("AdbMonitor {}".format(UsbConst.start_server))
             exec_cmd([UsbConst.connector, "start-server"], error_print=False)
 
-    def track_device(self):
+    def track_devices(self):
         if self.main_adb_connection and not self.monitoring:
             self.monitoring = self.device_list_monitoring()
         if self.monitoring is True:
@@ -333,7 +336,7 @@ class AdbMonitor:
             len_str = AdbHelper.reply_to_string(len_buf)
             length = int(len_str, HEXADECIMAL_NUMBER)
             if length >= 0:
-                self.process_incoming_target_data(length)
+                self.process_incoming_device_data(length)
             self.server.monitor_lock.release()
 
 
@@ -361,8 +364,8 @@ class SyncService:
 
         resp = AdbHelper.read_adb_response(self.sock)
         if not resp.okay:
-            self.device.log.error("Got unhappy response form HDC sync req: {}".format(resp.message))
-            raise HdcError("Got unhappy response form HDC sync req: {}".format(resp.message))
+            self.device.log.error("Got unhappy response from HDC sync req: {}".format(resp.message))
+            raise HdcError("Got unhappy response from HDC sync req: {}".format(resp.message))
 
     def close(self):
         if self.sock is not None:
@@ -452,7 +455,7 @@ class SyncService:
                         length = self.swap32bit_from_array(pull_result, 0)
                         self.device.log.debug("do_pull_file: %s" % str(length))
                     else:
-                        raise IndexError(str(index_error)) from index_error
+                        raise index_error
 
                 if length > SYNC_DATA_MAX:
                     raise HdcError("Receiving too much data.")
@@ -504,8 +507,12 @@ class SyncService:
         """
         mode = self.read_mode(remote)
         self.device.log.debug("Remote file %s mode is %d" % (remote, mode))
-        self.device.log.debug("%s execute command: hdc push %s %s" % (
-            convert_serial(self.device.device_sn), local, remote))
+        if self.device.usb_type == DeviceConnectorType.hdc:
+            self.device.log.debug("%s execute command: hdc push %s %s" % (
+                convert_serial(self.device.device_sn), local, remote))
+        else:
+            self.device.log.debug("%s execute command: %s push %s %s" % (
+                convert_serial(self.device.device_sn), UsbConst.push, local, remote))
         if str(mode).startswith("168"):
             remote = "%s/%s" % (remote, os.path.basename(local))
 
@@ -712,16 +719,16 @@ class AdbHelper:
     @staticmethod
     def pull_file(device, remote, local, is_create=False, timeout=DEFAULT_TIMEOUT):
         if device.usb_type == DeviceConnectorType.hdc:
-            device.log.info("{} execute command: {} file recv {} {}".format(
+            device.log.info("{} execute command: {} file recv {} to {}".format(
                 convert_serial(device.device_sn), AdbHelper.CONNECTOR_NAME, remote, local))
         else:
-            device.log.info("{} execute command: {} {} {} {}".format(
-                convert_serial(device.device_sn), AdbHelper.CONNECTOR_NAME, UsbConst.pull, remote, local))
+            device.log.info("{} execute command: {} {} to {}".format(
+                convert_serial(device.device_sn), UsbConst.pull, remote, local))
         service = None
         try:
             service = SyncService(device, host=device.host, port=device.port)
             service.open_sync(timeout)
-            service.pull(remote, local, is_create=is_create)
+            service.pull_file(remote, local, is_create=is_create)
         finally:
             if service is not None:
                 service.close()
@@ -729,7 +736,7 @@ class AdbHelper:
     @staticmethod
     def _install_remote_package(device, remote_file_path, command):
         receiver = CollectingOutputReceiver()
-        cmd = "bm install %s %s" % (command.strip(), remote_file_path)
+        cmd = "pm install %s %s" % (command.strip(), remote_file_path)
         AdbHelper.execute_shell_command(device, cmd, INSTALL_TIMEOUT, receiver)
         return receiver.output
 
@@ -757,7 +764,7 @@ class AdbHelper:
     @staticmethod
     def uninstall_package(device, package_name):
         receiver = CollectingOutputReceiver()
-        command = "bm uninstall -n %s " % package_name
+        command = "pm uninstall %s " % package_name
         device.log.info("%s %s" % (convert_serial(device.device_sn), command))
         AdbHelper.execute_shell_command(device, command, INSTALL_TIMEOUT,
                                         receiver)
@@ -818,14 +825,14 @@ class AdbHelper:
                 AdbHelper.set_device(device, sock)
                 request = AdbHelper.form_adb_request("shell:{}".format(command))
                 AdbHelper.write(sock, request)
-                resp = AdbHelper.read_adb_response()
+                resp = AdbHelper.read_adb_response(sock)
                 if not resp.okay:
                     device.log.error(
                         "[AdbHelper] {} rejected shell command ({}): {}".format(AdbHelper.CONNECTOR_NAME, command,
                                                                                 resp.message))
                     raise HdcCommandRejectedException(resp.message)
 
-                data = sock.recv(SYNC_DATA_MAX)
+                data = sock.recv(SOCK_DATA_MAX)
                 while data != b'':
                     ret = AdbHelper.reply_to_string(data)
                     if ret:
@@ -835,7 +842,7 @@ class AdbHelper:
                             LOG.debug(ret)
                     if not Scheduler.is_execute:
                         raise ExecuteTerminate()
-                    data = AdbHelper.read(sock, SYNC_DATA_MAX)
+                    data = AdbHelper.read(sock, SOCK_DATA_MAX)
                 return resp
         except socket.timeout as error:
             device.log.error("ShellCommandUnresponsiveException: {} shell {} timeout[{}S]".format(
@@ -876,7 +883,7 @@ class AdbHelper:
     @staticmethod
     def read_adb_response(sock, read_diag_string=False):
         """
-        Reads the response from HDC after a command.
+        Reads the response from ADB after a command.
 
         Args:
         ------------
@@ -974,14 +981,14 @@ class AdbHelper:
         sock = None
         adb_connection = AdbMonitor.MONITOR_MAP.get(host, "127.0.0.1")
         while host not in AdbMonitor.MONITOR_MAP or \
-                adb_connection.main_hdc_connection is None:
-            LOG.debug("Host: %s, port: %s, HdcMonitor map is %s" % (
+                adb_connection.main_adb_connection is None:
+            LOG.debug("Host: %s, port: %s, AdbMonitor map is %s" % (
                 host, port, AdbMonitor.MONITOR_MAP))
             if host in AdbMonitor.MONITOR_MAP:
-                LOG.debug("Monitor main hdc connection is %s" %
-                          adb_connection.main_hdc_connection)
+                LOG.debug("Monitor main {} connection is {}".format(AdbHelper.CONNECTOR_NAME,
+                          adb_connection.main_hdc_connection))
             if time.time() > end:
-                raise HdcError("Cannot detect HDC monitor!")
+                raise HdcError("Cannot detect {} monitor!".format(AdbHelper.CONNECTOR_NAME))
             time.sleep(2)
 
         try:
@@ -1121,7 +1128,7 @@ def process_command_ret(ret, receiver):
             receiver.__done__()
     except Exception as error:
         LOG.exception("Error generating log report.", exc_info=False)
-        raise ReportException() from error
+        raise error
 
     if ret != "" and not receiver:
         lines = ret.split("\n")
