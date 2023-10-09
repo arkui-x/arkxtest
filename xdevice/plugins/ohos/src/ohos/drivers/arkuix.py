@@ -137,7 +137,7 @@ class ARKUIXJSUnitTestDriver(IDriver):
             raise exception
         finally:
             try:
-                self._handle_logs(request)
+                self._handle_logs()
             finally:
                 self.result = check_result_report(
                     request.config.report_path, self.result, self.error_message)
@@ -220,7 +220,7 @@ class ARKUIXJSUnitTestDriver(IDriver):
         self.runner.run(listener, path)
         self.runner.notify_finished()
 
-    def _handle_logs(self, request):
+    def _handle_logs(self):
         serial = "crash_log_{}_{}".format(str(self.config.device.__get_serial__()), time.time_ns())
         log_tar_file_name = "{}".format(str(serial).replace(":", "_"))
         self.config.device.device_log_collector.start_get_crash_log(log_tar_file_name)
@@ -311,7 +311,8 @@ class ARKUIXJSUnitTestRunner:
 
     @staticmethod
     def kill_proc(proc, timeout, stop_event):
-        end_time = time.time() + timeout
+        # test-timeout单位用的是毫秒
+        end_time = time.time() + int(timeout / 1000)
         while time.time() < end_time and not stop_event.is_set():
             time.sleep(1)
         if proc.poll() is None:
