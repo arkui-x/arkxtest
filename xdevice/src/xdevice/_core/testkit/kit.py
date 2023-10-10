@@ -240,7 +240,12 @@ def get_app_name_by_tool(app_path, paths):
         The Pkg Name if found else None
     """
     rex = "^package:\\s+name='(.*?)'.*$"
-    aapt_tool_name = "aapt.exe" if os.name == "nt" else "aapt"
+    if platform.system() == "Windows":
+        aapt_tool_name = "aapt.exe"
+    elif platform.system() == "Linux":
+        aapt_tool_name = "aapt"
+    else:
+        aapt_tool_name = "aapt_mac"
     if app_path:
         proc_timer = None
         try:

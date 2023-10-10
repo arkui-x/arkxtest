@@ -341,7 +341,7 @@ class ManagerAospDevice(IDeviceManager, IFilter):
 
     def __filter_xml_node__(self, node):
         if isinstance(node, DeviceNode):
-            if UsbConst.connector_type in node.get_connectors():
+            if UsbConst.connector in node.get_connectors():
                 return True
         return False
 

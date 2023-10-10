@@ -352,9 +352,9 @@ class ARKUIXJSUnitTestRunner:
 
     def _get_run_command(self, device):
         if device.device_os_type == DeviceOsType.ios:
-            test_product = "app"
+            test_product = "ios"
         else:
             test_product = "apk"
         command = ["ace", "test", test_product, "--b", self.config.bundle_name, "--m", self.config.module_name,
-                   "--unittest", "OpenHarmonyTestRunner"]
+                   "--unittest", "OpenHarmonyTestRunner", "--skipInstall"]
         return command
