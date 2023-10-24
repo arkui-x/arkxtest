@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import os
 from xdevice import AppInstallError
 from xdevice import ITestKit
 from xdevice import Plugin
@@ -27,9 +27,9 @@ from xdevice import get_install_args
 from xdevice import get_app_name_by_tool
 
 from aosp.constants import CKit
-from aosp import RES_PATH
 
 LOG = platform_logger("Kit")
+AAPT_PATH = None
 
 __all__ = ["ApkInstallKit"]
 
@@ -86,7 +86,7 @@ class ApkInstallKit(ITestKit):
         # arkuix跨平台测试需要一个入口文件来启动，通过查找app包名获取文件路径
         if request.root.source.test_type == DeviceTestType.arkuix_jsunit_test:
             for app in self.installed_app:
-                app_name = get_app_name_by_tool(app, [RES_PATH])
+                app_name = get_app_name_by_tool(app, [get_aapt_path()])
                 if app_name == request.config.bundle_name:
                     request.config.testargs.update({"app_file": app})
                     break
@@ -103,7 +103,7 @@ class ApkInstallKit(ITestKit):
                         LOG.warning("Error uninstalling package {} {}".format(device.__get_serial__(), result))
             else:
                 for app in self.installed_app:
-                    app_name = get_app_name_by_tool(app, [RES_PATH])
+                    app_name = get_app_name_by_tool(app, [get_aapt_path()])
                     if app_name:
                         result = device.uninstall_package(app_name)
                         if result and (result.startswith("Success") or "successfully" in result):
@@ -112,3 +112,20 @@ class ApkInstallKit(ITestKit):
                             LOG.warning("Error uninstalling package {} {}".format(device.__get_serial__(), result))
                     else:
                         LOG.warning("Can't find app name for {}".format(app))
+
+
+def get_aapt_path():
+    global AAPT_PATH
+    if AAPT_PATH:
+        return AAPT_PATH
+    sdk = os.environ.get("ANDROID_HOME")
+    if not sdk:
+        raise EnvironmentError("Can't not find android sdk, please check!")
+    build_path = os.path.join(sdk, "build-tools")
+    aapt_name = "aapt.exe" if os.name == "nt" else "aapt"
+    for tool_dir in os.listdir(build_path):
+        aapt_path = os.path.join(build_path, tool_dir, aapt_name)
+        if os.path.exists(aapt_path):
+            AAPT_PATH = os.path.join(build_path, tool_dir)
+            return AAPT_PATH
+    return None
