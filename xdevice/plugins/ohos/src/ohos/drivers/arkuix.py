@@ -284,7 +284,7 @@ class ARKUIXJSUnitTestRunner:
             timeout_thread.start()
             while True:
                 output = proc.stdout.readline()
-                if b'Test failed' in output:
+                if b'Test failed' in output or b'test failed' in output:
                     raise ExecuteTerminate(error_msg="Test failed!")
                 if output == b'' and proc.poll() is not None:
                     break
