@@ -187,7 +187,7 @@ class AdbMonitor:
             try:
                 monitor.is_stop = True
                 if monitor.main_adb_connection is not None:
-                    monitor.main_adb_connection.shutdowm(2)
+                    monitor.main_adb_connection.shutdown(2)
                     monitor.main_adb_connection.close()
                     monitor.main_adb_connection = None
             except (socket.error, socket.gaierror, socket.timeout) as _:
