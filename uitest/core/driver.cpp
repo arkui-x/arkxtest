@@ -90,7 +90,7 @@ void Driver::PressBack()
     HILOG_DEBUG("Driver::PressBack called");
     auto uicontent = GetUIContent();
     CHECK_NULL_VOID(uicontent);
-    uicontent->ProcessBackPressed();
+    uicontent->Finish();
 }
 
 void Driver::DelayMs(int dur)
@@ -520,11 +520,9 @@ On* On::Text(const string& text, MatchPattern pattern)
     if (pattern >= MatchPattern::EQUALS && pattern <= MatchPattern::ENDS_WITH) {
         this->text = std::make_shared<string>(text);
         this->pattern_ = pattern;
-        this->isEnter = true;
         HILOG_DEBUG("On::Text success");
-    } else {
-        this->isEnter = false;
     }
+    this->isEnter = true;
     return this;
 }
 
