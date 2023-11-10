@@ -17,7 +17,7 @@
 
 #include <future>
 #include <vector>
-
+#include <math.h>
 #include "ability_delegator/ability_delegator_registry.h"
 #include "accessibility_node.h"
 #include "core/event/key_event.h"
@@ -34,7 +34,11 @@ static constexpr const char UPPER_A = 'A';
 static constexpr const char LOWER_A = 'a';
 static constexpr const char DEF_NUMBER = '0';
 static constexpr const int32_t DELAY_TIME= 100;
-
+constexpr size_t INDEX_ZERO = 0;
+constexpr size_t INDEX_ONE = 1;
+constexpr size_t INDEX_TWO = 2;
+constexpr size_t INDEX_THREE = 3;
+constexpr size_t INDEX_FOUR = 4;
 
 int32_t Findkeycode(const char text)
 {
@@ -77,6 +81,17 @@ Ace::Platform::UIContent* GetUIContent()
     return delegator->GetUIContent(topAbility->instanceId_);
 }
 
+static void PackagingEvent(Ace::TouchEvent& event, Ace::TimeStamp time, Ace::TouchType type, const Point& point)
+{
+    event.time = time;
+    event.type = type;
+    event.x = point.x;
+    event.y = point.y;
+    event.screenX = point.x;
+    event.screenY = point.y;
+    event = event.UpdatePointers();
+}
+
 bool Driver::AssertComponentExist(const On& on)
 {
     HILOG_DEBUG("Driver::AssertComponentExist");
@@ -93,23 +108,110 @@ void Driver::PressBack()
     uicontent->ProcessBackPressed();
 }
 
+void Driver::TriggerKey(int keyCode)
+{
+    auto uiContent = GetUIContent();
+    CHECK_NULL_VOID(uiContent);
+    if (keyCode == -1) {
+        return;
+    }
+    HILOG_DEBUG("Driver::TriggerKey: %{public}d", keyCode);
+    uiContent->ProcessKeyEvent(static_cast<int32_t>(keyCode), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+    uiContent->ProcessKeyEvent(static_cast<int32_t>(keyCode), static_cast<int32_t>(Ace::KeyAction::UP), 0);
+    DelayMs(DELAY_TIME);
+}
+
+void Driver::TriggerCombineKeys(int key0, int key1, int key2)
+{
+    auto uiContent = GetUIContent();
+    if (key0 == -1 && key1 == -1) {
+        return;
+    }
+    HILOG_DEBUG("Driver::TriggerCombineKeys: %{public}d %{public}d %{public}d", key0, key1, key2);
+    uiContent->ProcessKeyEvent(static_cast<int32_t>(key0), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+    uiContent->ProcessKeyEvent(static_cast<int32_t>(key1), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+    if (key2 != -1) {
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(key2), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+    }
+    DelayMs(DELAY_TIME);
+    uiContent->ProcessKeyEvent(static_cast<int32_t>(key0), static_cast<int32_t>(Ace::KeyAction::UP), 0);
+    uiContent->ProcessKeyEvent(static_cast<int32_t>(key1), static_cast<int32_t>(Ace::KeyAction::UP), 0);
+    if (key2 != -1) {
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(key2), static_cast<int32_t>(Ace::KeyAction::UP), 0);
+    }
+    DelayMs(DELAY_TIME);
+}
+
+bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, int speed)
+{
+    uint32_t fingers = pointers.GetFingers();
+    uint32_t steps = pointers.GetSteps();
+    if (steps <= 1) {
+        HILOG_ERROR("Driver::InjectMultiPointerAction no move.");
+        return false;
+    }
+    if (pointers.GetPointMap().size() < fingers ||
+        pointers.GetPointMap().begin()->second.size() < steps) {
+        HILOG_ERROR("Driver::InjectMultiPointerAction fingerPointMap_ data error.");
+        return false;
+    }
+
+    // pair Point for ready
+    vector<PointPair> pointPairVec;
+    for (uint16_t step = 0; step < steps - 1; step++) {
+        for (auto it : pointers.GetPointMap()) {
+            PointPair listTemp;
+            listTemp.from = it.second[step];
+            listTemp.to = it.second[step + 1];
+            pointPairVec.push_back(listTemp);
+        }
+    }
+
+    auto uiContent = GetUIContent();
+    CHECK_NULL_RETURN(uiContent, false);
+    UiOpArgs options;
+    uint32_t injectSpeed = speed;
+    if (speed < options.minFlingVelocityPps_ || speed > options.maxFlingVelocityPps_) {
+        injectSpeed = options.defaultVelocityPps_;
+    }
+    std::vector<Ace::TouchEvent> injectEvents;
+    int64_t currentTimeMillis = getCurrentTimeMillis();
+    for (auto it : pointPairVec) {
+        int startx = it.from.x;
+        int starty = it.from.y;
+        int endx = it.to.x;
+        int endy = it.to.y;
+        Ace::TouchEvent downEvent;
+        PackagingEvent(downEvent, TimeStamp(currentTimeMillis), Ace::TouchType::DOWN, { startx, starty });
+        injectEvents.push_back(downEvent);
+
+        const int distanceX = endx - startx;
+        const int distanceY = endy - starty;
+        const int distance = sqrt(distanceX * distanceX + distanceY * distanceY);
+        const uint32_t timeCostMs = (uint32_t)((distance * 1000) / injectSpeed);
+        const uint32_t timeOffsetMs = timeCostMs / 2;  //do
+        Ace::TouchEvent moveEvent;
+        moveEvent = moveEvent.UpdatePointers();
+        PackagingEvent(moveEvent, TimeStamp(currentTimeMillis + timeOffsetMs),
+            Ace::TouchType::MOVE, { endx, endy });
+        injectEvents.push_back(moveEvent);
+
+        Ace::TouchEvent upEvent;
+        PackagingEvent(upEvent, TimeStamp(currentTimeMillis + timeCostMs), Ace::TouchType::UP, { endx, endy });
+        injectEvents.push_back(upEvent);
+
+        uiContent->ProcessBasicEvent(injectEvents);
+    }
+
+    return true;
+}
+
 void Driver::DelayMs(int dur)
 {
     HILOG_DEBUG("Driver::DelayMs duration=%d", dur);
     if (dur > 0) {
         this_thread::sleep_for(chrono::milliseconds(dur));
     }
-}
-
-static void PackagingEvent(Ace::TouchEvent& event, Ace::TimeStamp time, Ace::TouchType type, const Point& point)
-{
-    event.time = time;
-    event.type = type;
-    event.x = point.x;
-    event.y = point.y;
-    event.screenX = point.x;
-    event.screenY = point.y;
-    event = event.UpdatePointers();
 }
 
 void Driver::Click(int x, int y)
@@ -234,7 +336,6 @@ void Driver::Fling(const Point& from, const Point& to, int stepLen, int speed)
 
     UiOpArgs options;
     uint32_t flingSpeed = speed;
-
     if (speed < options.minFlingVelocityPps_ || speed > options.maxFlingVelocityPps_) {
         flingSpeed = options.defaultVelocityPps_;
     }
@@ -265,6 +366,73 @@ void Driver::Fling(const Point& from, const Point& to, int stepLen, int speed)
 
     auto uiContent = GetUIContent();
     CHECK_NULL_VOID(uiContent);
+    uiContent->ProcessBasicEvent(flingEvents);
+}
+
+void Driver::Fling(UiDirection direction, int speed)
+{
+    UiOpArgs options;
+    uint32_t flingSpeed = speed;
+    if (speed < options.minFlingVelocityPps_ || speed > options.maxFlingVelocityPps_) {
+        flingSpeed = options.defaultVelocityPps_;
+    }
+    OHOS::Ace::Platform::ComponentInfo info;
+    auto uiContent = GetUIContent();
+    CHECK_NULL_VOID(uiContent);
+    uiContent->GetAllComponents(0, info);
+    Point to;
+    to.x = info.width / INDEX_TWO;
+    to.y = info.height / INDEX_TWO;
+    Point from;
+    switch (direction)
+    {
+    case UiDirection::LEFT :
+        from.x = to.x - info.width / INDEX_FOUR;
+        from.y = to.y;
+        break;
+    case UiDirection::RIGHT :
+        from.x = to.x + info.width / INDEX_FOUR;
+        from.y = to.y;
+        break;
+    case UiDirection::UP :
+        from.x = to.x;
+        from.y = to.y - info.height / INDEX_FOUR;
+        break;
+    case UiDirection::DOWN :
+        from.x = to.x;
+        from.y = to.y + info.height / INDEX_FOUR;
+        break;
+    default:
+        from.x = to.x - info.width / INDEX_FOUR;
+        from.y = to.y;
+    }
+    const int distanceX = to.x - from.x;
+    const int distanceY = to.y - from.y;
+    const int distance = sqrt(distanceX * distanceX + distanceY * distanceY);
+    if (distance == 0) {
+        HILOG_ERROR("Driver::Fling direction ignored. distance is illegal");
+        return;
+    }
+    const uint32_t timeCostMs = (uint32_t)((distance * 1000) / flingSpeed);
+
+    std::vector<Ace::TouchEvent> flingEvents;
+    int64_t currentTimeMillis = getCurrentTimeMillis();
+    Ace::TouchEvent downEvent;
+    PackagingEvent(downEvent, TimeStamp(currentTimeMillis), Ace::TouchType::DOWN, from);
+    flingEvents.push_back(downEvent);
+
+    const float pointX = from.x + distanceX;
+    const float pointY = from.y + distanceY;
+    const uint32_t timeOffsetMs = timeCostMs / INDEX_TWO;
+    Ace::TouchEvent moveEvent;
+    PackagingEvent(moveEvent, TimeStamp(currentTimeMillis + timeOffsetMs),
+        Ace::TouchType::MOVE, { pointX, pointY });
+    flingEvents.push_back(moveEvent);
+
+    Ace::TouchEvent upEvent;
+    PackagingEvent(upEvent, TimeStamp(currentTimeMillis + timeCostMs), Ace::TouchType::UP, to);
+    flingEvents.push_back(upEvent);
+
     uiContent->ProcessBasicEvent(flingEvents);
 }
 
@@ -378,18 +546,19 @@ void Component::InputText(const string& text)
 {
     HILOG_DEBUG("Component::InputText");
     auto uiContent = GetUIContent();
+    CHECK_NULL_VOID(uiContent);
     Driver driver;
     for (int i = 0; i < text.length(); i++) {
         int32_t keycode = Findkeycode(text[i]);
         if (keycode == -1) {
             continue;
         }
-        HILOG_DEBUG("Component::checkable: %{public}d", keycode);
+        HILOG_DEBUG("Component::InputText: %{public}d", keycode);
         uiContent->ProcessKeyEvent(static_cast<int32_t>(keycode), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
         uiContent->ProcessKeyEvent(static_cast<int32_t>(keycode), static_cast<int32_t>(Ace::KeyAction::UP), 0);
         driver.DelayMs(DELAY_TIME);
     }
-   
+    componentInfo_.text = text;
 }
 
 void Component::ClearText()
@@ -405,6 +574,7 @@ void Component::ClearText()
         driver.DelayMs(DELAY_TIME);
         uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_DEL), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
         uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_DEL), static_cast<int32_t>(Ace::KeyAction::UP), 0);
+        driver.DelayMs(DELAY_TIME);
     }
 }
 
@@ -497,10 +667,86 @@ void Component::ScrollToBottom(int speed)
         step++;
     }
 }
+/*
+left    number  是  是  矩形区域的左边界，单位为px，该参数为整数。
+top number  是  是  矩形区域的上边界，单位为px，该参数应为整数。
+width   number  是  是  矩形区域的宽度，单位为px，该参数应为整数。
+height  number  是  是  矩形区域的高度，单位为px，该参数应为整数。
+*/ 
+Rect Component::GetBounds()
+{
+    Rect rect;
+    rect.left = componentInfo_.left;
+    rect.right = componentInfo_.left + componentInfo_.width;
+    rect.top = componentInfo_.top;
+    rect.bottom = componentInfo_.top + componentInfo_.height;
+    return rect;
+}
+
+Rect Component::GetDefaultBounds() const
+{
+    return defaultRect_;
+}
+
+void Component::PinchOut(float scale)
+{
+    HILOG_DEBUG("Component::PinchOut");
+    if (scale <= 1.0f) {
+        HILOG_DEBUG("Component::PinchOut scale[%f] <= 1.0f", scale);
+        return;
+    }
+    Rect rect = GetDefaultBounds();
+    float width = (rect.right - rect.left);
+    float height = (rect.bottom - rect.top);
+    Point point;
+    point.x = rect.left + width / 2;
+    point.y = rect.top + height / 2;
+    // set new
+    componentInfo_.width = width * scale;
+    componentInfo_.height = height * scale;
+    componentInfo_.left = point.x - componentInfo_.width / 2;
+    componentInfo_.top = point.y - componentInfo_.height / 2;
+    HILOG_DEBUG("Component::PinchOut left:%f top:%f width:%f height:%f  x:%d  y:%d",
+        componentInfo_.left, componentInfo_.top, componentInfo_.width, componentInfo_.height,
+        point.x, point.y);
+}
+
+void Component::PinchIn(float scale)
+{
+    HILOG_DEBUG("Component::PinchIn");
+    if (scale >= 1.0f) {
+        HILOG_DEBUG("Component::PinchIn scale[%f] >= 1.0f", scale);
+        return;
+    }
+    Rect rect = GetDefaultBounds();
+    float width = (rect.right - rect.left);
+    float height = (rect.bottom - rect.top);
+    Point point;
+    point.x = rect.left + width / 2;
+    point.y = rect.top + width / 2;
+    // set new
+    componentInfo_.width = width * scale;
+    componentInfo_.height = height * scale;
+    componentInfo_.left = point.x - componentInfo_.width / 2;
+    componentInfo_.top = point.y - componentInfo_.height / 2;
+    HILOG_DEBUG("Component::PinchIn left:%f top:%f width:%f height:%f  x:%d  y:%d",
+        componentInfo_.left, componentInfo_.top, componentInfo_.width, componentInfo_.height,
+        point.x, point.y);
+}
 
 void Component::SetComponentInfo(const OHOS::Ace::Platform::ComponentInfo& com)
 {
     componentInfo_ = com;
+    // set default Rect
+    defaultRect_.left = componentInfo_.left;
+    defaultRect_.top = componentInfo_.top;
+    defaultRect_.right = componentInfo_.left + componentInfo_.width;
+    defaultRect_.bottom = componentInfo_.top + componentInfo_.height;
+}
+
+OHOS::Ace::Platform::ComponentInfo Component::GetComponentInfo() const
+{
+    return componentInfo_;
 }
 
 Point Component::GetBoundsCenter()
@@ -608,6 +854,97 @@ On* On::Checked(bool checked)
     return this;
 }
 
+On* On::IsBefore(const On& on)
+{
+    HILOG_DEBUG("On::IsBefore");
+    OHOS::Ace::Platform::ComponentInfo info;
+    auto uiContent = GetUIContent();
+    CHECK_NULL_RETURN(uiContent, nullptr);
+    uiContent->GetAllComponents(0, info);
+    std::vector<float> rootrange;
+    rootrange.push_back(info.top);
+    rootrange.push_back(info.top + info.height);
+    HILOG_DEBUG("GetAllComponents ok");
+    int pos = -1; // find
+    OHOS::Ace::Platform::ComponentInfo parent;
+    bool ret = GetParentComponent(info, on, pos, parent, rootrange);
+    if (!ret || pos < 0) {
+        HILOG_ERROR("not find parent Component");
+        return nullptr;
+    }
+
+    uint32_t size = parent.children.size();
+    if (size <= 1 || pos == 0) {
+        HILOG_ERROR("not find before Component");
+        return nullptr;
+    }
+    OHOS::Ace::Platform::ComponentInfo childInfo = parent.children[pos - 1];
+
+    SetComponentInfo(childInfo);
+    this->isEnter = true;
+    return this;
+}
+
+On* On::IsAfter(const On& on)
+{
+    HILOG_DEBUG("On::IsAfter");
+    OHOS::Ace::Platform::ComponentInfo info;
+    auto uiContent = GetUIContent();
+    CHECK_NULL_RETURN(uiContent, nullptr);
+    uiContent->GetAllComponents(0, info);
+    std::vector<float> rootrange;
+    rootrange.push_back(info.top);
+    rootrange.push_back(info.top + info.height);
+    HILOG_DEBUG("GetAllComponents ok");
+    int pos = -1;
+    OHOS::Ace::Platform::ComponentInfo parent;
+    bool ret = GetParentComponent(info, on, pos, parent, rootrange);
+    if (!ret || pos < 0) {
+        HILOG_ERROR("not find parent Component");
+        return nullptr;
+    }
+
+    uint32_t size = parent.children.size();
+    if (size <= 1 || pos <= (size - 1)) {
+        HILOG_ERROR("not find after Component");
+        return nullptr;
+    }
+    OHOS::Ace::Platform::ComponentInfo childInfo = parent.children[pos + 1];
+
+    SetComponentInfo(childInfo);
+    this->isEnter = true;
+    return this;
+}
+
+On* On::Within(const On& on)
+{
+    HILOG_DEBUG("On::Within");
+    OHOS::Ace::Platform::ComponentInfo info;
+    auto uiContent = GetUIContent();
+    CHECK_NULL_RETURN(uiContent, nullptr);
+    uiContent->GetAllComponents(0, info);
+    std::vector<float> rootrange;
+    rootrange.push_back(info.top);
+    rootrange.push_back(info.top + info.height);
+    HILOG_DEBUG("GetAllComponents ok");
+    OHOS::Ace::Platform::ComponentInfo ret; // find
+    GetComponentvalue(info, on, ret, rootrange);
+    if (ret.left < 1 && ret.top < 1 && ret.width < 1 && ret.height < 1) {
+        HILOG_ERROR("not find Component");
+        return nullptr;
+    }
+    // 查找已有的，不是新创建
+    if (ret.children.size() == 0) {
+        HILOG_ERROR("not child Component");
+        return nullptr;
+    }
+    // 默认返回第一个控件的属性
+    OHOS::Ace::Platform::ComponentInfo childInfo = ret.children[0];
+    SetComponentInfo(childInfo);
+    this->isEnter = true;
+    return this;
+}
+
 bool On::CompareText(const string& text) const
 {
     if (this->pattern_ == MatchPattern::EQUALS) {
@@ -623,6 +960,21 @@ bool On::CompareText(const string& text) const
         }
     }
     return false;
+}
+
+void On::SetComponentInfo(OHOS::Ace::Platform::ComponentInfo& info)
+{
+    this->id = std::make_shared<string>(info.compid);
+    this->text = std::make_shared<string>(info.text);
+    this->type = std::make_shared<string>(info.type);
+    this->clickable = std::make_shared<bool>(info.clickable);
+    this->longClickable = std::make_shared<bool>(info.longClickable);
+    this->scrollable = std::make_shared<bool>(info.scrollable);
+    this->enabled = std::make_shared<bool>(info.enabled);
+    this->focused = std::make_shared<bool>(info.focused);
+    this->selected = std::make_shared<bool>(info.selected);
+    this->checked = std::make_shared<bool>(info.checked);
+    this->checkable = std::make_shared<bool>(info.checkable);
 }
 
 bool operator == (const On& on, const OHOS::Ace::Platform::ComponentInfo& info)
@@ -686,6 +1038,38 @@ static void GetComponentvalue(OHOS::Ace::Platform::ComponentInfo& component,cons
     for (auto& child : component.children) {
         GetComponentvalue(child, on, ret, rootrange);
     }
+}
+
+static bool GetParentComponent(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
+    int& pos, OHOS::Ace::Platform::ComponentInfo& parent,
+    std::vector<float>& rootrange)
+{
+    if (on == component) {
+        auto componentTop = component.top;
+        auto componentBottom = component.top + component.height;
+        pos = -1; // 没有其他同辈控件了
+        if (rootrange.size() == 0) {
+            HILOG_DEBUG("GetParentComponent return invisible.");
+            return true;
+        } else if (rootrange.size() == VIEW_SIZE && componentTop >= rootrange[0] && componentBottom <= rootrange[1]) {
+            HILOG_DEBUG("GetParentComponent return visible.");
+            return true;
+        } else {
+            HILOG_DEBUG("GetParentComponent find maybe children Component.");
+            return true;
+        }
+    }
+    int i = 0;
+    for (; i < component.children.size(); i++) {
+        auto& child = component.children[i];
+        if (GetParentComponent(child, on, pos, component, rootrange)) {
+            HILOG_ERROR("find Component.");
+            parent = component;
+            pos = i; // on在parent中的顺序
+            return true;
+        }
+    }
+    return false;
 }
 
 unique_ptr<Component> Driver::FindComponent(const On& on)
@@ -792,4 +1176,57 @@ unique_ptr<Component> Component::ScrollSearch(const On& on)
     component->SetComponentInfo(ret);
     return component;
 }
+
+PointerMatrix* PointerMatrix::pm = nullptr;
+
+PointerMatrix::~PointerMatrix() {
+    fingerPointMap_.clear();
+    fingerNum_ = 0;
+    stepNum_ = 0;
+}
+
+PointerMatrix* PointerMatrix::Create(uint32_t fingers, uint32_t steps)
+{
+    if (pm == nullptr) {
+        pm = new PointerMatrix();
+    }
+    pm->fingerPointMap_.clear();
+    pm->fingerNum_ = fingers;
+    pm->stepNum_ = steps;
+    return pm;
+}
+
+void PointerMatrix::SetPoint(uint32_t finger, uint32_t step, Point& point)
+{
+    if (finger < this->fingerNum_) {
+        if (step < this->stepNum_) {
+            vector<Point>& pointVec = fingerPointMap_[finger];
+            Point pointTmp = point;
+            pointVec.push_back(pointTmp);
+        }
+    }
+}
+
+PointerMatrix& PointerMatrix::operator=(PointerMatrix&& other)
+{
+    this->fingerPointMap_ = other.fingerPointMap_;
+    this->fingerNum_ = other.fingerNum_;
+    this->stepNum_ = other.stepNum_;
+    return *this;
+}
+
+uint32_t PointerMatrix::GetSteps() const
+{
+    return this->stepNum_;
+}
+
+uint32_t PointerMatrix::GetFingers() const
+{
+    return this->fingerNum_;
+}
+
+std::map<int, std::vector<Point>> PointerMatrix::GetPointMap() const {
+    return this->fingerPointMap_;
+}
+
 } // namespace OHOS::UiTest
