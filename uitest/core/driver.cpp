@@ -108,26 +108,26 @@ void Driver::PressBack()
     uicontent->ProcessBackPressed();
 }
 
-void Driver::triggerKey(int keyCode)
+void Driver::TriggerKey(int keyCode)
 {
     auto uiContent = GetUIContent();
     CHECK_NULL_VOID(uiContent);
     if (keyCode == -1) {
         return;
     }
-    HILOG_DEBUG("Driver::triggerKey: %{public}d", keyCode);
+    HILOG_DEBUG("Driver::TriggerKey: %{public}d", keyCode);
     uiContent->ProcessKeyEvent(static_cast<int32_t>(keyCode), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
     uiContent->ProcessKeyEvent(static_cast<int32_t>(keyCode), static_cast<int32_t>(Ace::KeyAction::UP), 0);
     DelayMs(DELAY_TIME);
 }
 
-void Driver::triggerCombineKeys(int key0, int key1, int key2)
+void Driver::TriggerCombineKeys(int key0, int key1, int key2)
 {
     auto uiContent = GetUIContent();
     if (key0 == -1 && key1 == -1) {
         return;
     }
-    HILOG_DEBUG("Driver::triggerCombineKeys: %{public}d %{public}d %{public}d", key0, key1, key2);
+    HILOG_DEBUG("Driver::TriggerCombineKeys: %{public}d %{public}d %{public}d", key0, key1, key2);
     uiContent->ProcessKeyEvent(static_cast<int32_t>(key0), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
     uiContent->ProcessKeyEvent(static_cast<int32_t>(key1), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
     if (key2 != -1) {
@@ -142,17 +142,17 @@ void Driver::triggerCombineKeys(int key0, int key1, int key2)
     DelayMs(DELAY_TIME);
 }
 
-bool Driver::injectMultiPointerAction(PointerMatrix& pointers, int speed)
+bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, int speed)
 {
     uint32_t fingers = pointers.GetFingers();
     uint32_t steps = pointers.GetSteps();
     if (steps <= 1) {
-        HILOG_ERROR("Driver::injectMultiPointerAction no move.");
+        HILOG_ERROR("Driver::InjectMultiPointerAction no move.");
         return false;
     }
     if (pointers.GetPointMap().size() < fingers ||
         pointers.GetPointMap().begin()->second.size() < steps) {
-        HILOG_ERROR("Driver::injectMultiPointerAction fingerPointMap_ data error.");
+        HILOG_ERROR("Driver::InjectMultiPointerAction fingerPointMap_ data error.");
         return false;
     }
 
@@ -688,11 +688,11 @@ Rect Component::GetDefaultBounds() const
     return defaultRect_;
 }
 
-void Component::pinchOut(float scale)
+void Component::PinchOut(float scale)
 {
-    HILOG_DEBUG("Component::pinchOut");
+    HILOG_DEBUG("Component::PinchOut");
     if (scale <= 1.0f) {
-        HILOG_DEBUG("Component::pinchOut scale[%f] <= 1.0f", scale);
+        HILOG_DEBUG("Component::PinchOut scale[%f] <= 1.0f", scale);
         return;
     }
     Rect rect = GetDefaultBounds();
@@ -706,16 +706,16 @@ void Component::pinchOut(float scale)
     componentInfo_.height = height * scale;
     componentInfo_.left = point.x - componentInfo_.width / 2;
     componentInfo_.top = point.y - componentInfo_.height / 2;
-    HILOG_DEBUG("Component::pinchOut left:%f top:%f width:%f height:%f  x:%d  y:%d",
+    HILOG_DEBUG("Component::PinchOut left:%f top:%f width:%f height:%f  x:%d  y:%d",
         componentInfo_.left, componentInfo_.top, componentInfo_.width, componentInfo_.height,
         point.x, point.y);
 }
 
-void Component::pinchIn(float scale)
+void Component::PinchIn(float scale)
 {
-    HILOG_DEBUG("Component::pinchIn");
+    HILOG_DEBUG("Component::PinchIn");
     if (scale >= 1.0f) {
-        HILOG_DEBUG("Component::pinchIn scale[%f] >= 1.0f", scale);
+        HILOG_DEBUG("Component::PinchIn scale[%f] >= 1.0f", scale);
         return;
     }
     Rect rect = GetDefaultBounds();
@@ -729,7 +729,7 @@ void Component::pinchIn(float scale)
     componentInfo_.height = height * scale;
     componentInfo_.left = point.x - componentInfo_.width / 2;
     componentInfo_.top = point.y - componentInfo_.height / 2;
-    HILOG_DEBUG("Component::pinchIn left:%f top:%f width:%f height:%f  x:%d  y:%d",
+    HILOG_DEBUG("Component::PinchIn left:%f top:%f width:%f height:%f  x:%d  y:%d",
         componentInfo_.left, componentInfo_.top, componentInfo_.width, componentInfo_.height,
         point.x, point.y);
 }
@@ -854,9 +854,9 @@ On* On::Checked(bool checked)
     return this;
 }
 
-On* On::isBefore(const On& on)
+On* On::IsBefore(const On& on)
 {
-    HILOG_DEBUG("On::isBefore");
+    HILOG_DEBUG("On::IsBefore");
     OHOS::Ace::Platform::ComponentInfo info;
     auto uiContent = GetUIContent();
     CHECK_NULL_RETURN(uiContent, nullptr);
@@ -885,9 +885,9 @@ On* On::isBefore(const On& on)
     return this;
 }
 
-On* On::isAfter(const On& on)
+On* On::IsAfter(const On& on)
 {
-    HILOG_DEBUG("On::isAfter");
+    HILOG_DEBUG("On::IsAfter");
     OHOS::Ace::Platform::ComponentInfo info;
     auto uiContent = GetUIContent();
     CHECK_NULL_RETURN(uiContent, nullptr);
@@ -916,9 +916,9 @@ On* On::isAfter(const On& on)
     return this;
 }
 
-On* On::within(const On& on)
+On* On::Within(const On& on)
 {
-    HILOG_DEBUG("On::within");
+    HILOG_DEBUG("On::Within");
     OHOS::Ace::Platform::ComponentInfo info;
     auto uiContent = GetUIContent();
     CHECK_NULL_RETURN(uiContent, nullptr);
@@ -1179,18 +1179,13 @@ unique_ptr<Component> Component::ScrollSearch(const On& on)
 
 PointerMatrix* PointerMatrix::pm = nullptr;
 
-PointerMatrix::PointerMatrix() {}
-
 PointerMatrix::~PointerMatrix() {
     fingerPointMap_.clear();
     fingerNum_ = 0;
     stepNum_ = 0;
-    if (pm != nullptr) {
-        delete pm;
-    }
 }
 
-PointerMatrix* PointerMatrix::create(uint32_t fingers, uint32_t steps)
+PointerMatrix* PointerMatrix::Create(uint32_t fingers, uint32_t steps)
 {
     if (pm == nullptr) {
         pm = new PointerMatrix();
@@ -1201,7 +1196,7 @@ PointerMatrix* PointerMatrix::create(uint32_t fingers, uint32_t steps)
     return pm;
 }
 
-void PointerMatrix::setPoint(uint32_t finger, uint32_t step, Point& point)
+void PointerMatrix::SetPoint(uint32_t finger, uint32_t step, Point& point)
 {
     if (finger < this->fingerNum_) {
         if (step < this->stepNum_) {

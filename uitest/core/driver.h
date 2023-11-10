@@ -105,9 +105,9 @@ public:
     On* Scrollable(bool scrollable);
     On* Checkable(bool checkable);
     On* Checked(bool checked);
-    On* isBefore(const On& on);
-    On* isAfter(const On& on);
-    On* within(const On& on);
+    On* IsBefore(const On& on);
+    On* IsAfter(const On& on);
+    On* Within(const On& on);
 
     shared_ptr<string> id;
     shared_ptr<string> text;
@@ -158,8 +158,8 @@ public:
     void ScrollToBottom(int speed);
 
     Rect GetBounds();
-    void pinchOut(float scale);
-    void pinchIn(float scale);
+    void PinchOut(float scale);
+    void PinchIn(float scale);
 
     void SetComponentInfo(const OHOS::Ace::Platform::ComponentInfo& com);
     OHOS::Ace::Platform::ComponentInfo GetComponentInfo() const;
@@ -181,9 +181,9 @@ public:
     bool AssertComponentExist(const On& on);
     void PressBack();
 
-    void triggerKey(int keyCode);
-    void triggerCombineKeys(int key0, int key1, int key2 = -1);
-    bool injectMultiPointerAction(PointerMatrix& pointers, int speed = opt.defaultVelocityPps_);
+    void TriggerKey(int keyCode);
+    void TriggerCombineKeys(int key0, int key1, int key2 = -1);
+    bool InjectMultiPointerAction(PointerMatrix& pointers, int speed = opt.defaultVelocityPps_);
     
     void DelayMs(int dur);
     void Click(int x, int y);
@@ -199,12 +199,11 @@ private:
 };
 
 class PointerMatrix {
-private:
-    PointerMatrix();
 public:
+    PointerMatrix() = default;
     ~PointerMatrix();
-    static PointerMatrix* create(uint32_t fingers, uint32_t steps);
-    void setPoint(uint32_t finger, uint32_t step, Point& point);
+    static PointerMatrix* Create(uint32_t fingers, uint32_t steps);
+    void SetPoint(uint32_t finger, uint32_t step, Point& point);
     PointerMatrix& operator=(PointerMatrix&& other);
     uint32_t GetSteps() const;
     uint32_t GetFingers() const;
