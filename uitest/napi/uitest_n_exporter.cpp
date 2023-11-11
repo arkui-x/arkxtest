@@ -47,6 +47,7 @@ napi_value UiTestExport(napi_env env, napi_value exports)
     products.emplace_back(std::make_unique<OnNExporter>(env, exports));
     products.emplace_back(std::make_unique<ComponentNExporter>(env, exports));
     products.emplace_back(std::make_unique<DriverNExporter>(env, exports));
+    products.emplace_back(std::make_unique<PointerMatrixNExporter>(env, exports));
     for (auto&& product : products) {
         if (!product->Export()) {
             HILOG_ERROR("INNER BUG. Failed to export class %s for module UiTest ", product->GetClassName().c_str());

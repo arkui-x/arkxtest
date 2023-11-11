@@ -132,9 +132,11 @@ bool operator == (const On& on, const OHOS::Ace::Platform::ComponentInfo& info);
 static void GetComponentvalue(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
     OHOS::Ace::Platform::ComponentInfo& ret, std::vector<float>& rootrange);
 
-static bool GetParentComponent(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
-    int& ret, OHOS::Ace::Platform::ComponentInfo& parent,
-    std::vector<float>& rootrange);
+static bool GetBeforeComponent(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
+    OHOS::Ace::Platform::ComponentInfo& ret, std::vector<float>& rootrange);
+
+static bool GetAfterComponent(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
+    OHOS::Ace::Platform::ComponentInfo& ret, std::vector<float>& rootrange);
 
 class Component {
 public:

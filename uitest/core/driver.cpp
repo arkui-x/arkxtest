@@ -39,6 +39,7 @@ constexpr size_t INDEX_ONE = 1;
 constexpr size_t INDEX_TWO = 2;
 constexpr size_t INDEX_THREE = 3;
 constexpr size_t INDEX_FOUR = 4;
+static bool AFTER_FLAG = false;
 
 int32_t Findkeycode(const char text)
 {
@@ -336,6 +337,7 @@ void Driver::Fling(const Point& from, const Point& to, int stepLen, int speed)
 
     UiOpArgs options;
     uint32_t flingSpeed = speed;
+
     if (speed < options.minFlingVelocityPps_ || speed > options.maxFlingVelocityPps_) {
         flingSpeed = options.defaultVelocityPps_;
     }
@@ -854,6 +856,44 @@ On* On::Checked(bool checked)
     return this;
 }
 
+static bool GetBeforeComponent(OHOS::Ace::Platform::ComponentInfo& component,
+    const On& on, OHOS::Ace::Platform::ComponentInfo& ret,
+    std::vector<float>& rootrange)
+{
+    if (on == component) {
+        return true;
+    }
+
+    for (auto& child : component.children) {
+        ret = child;
+        if (GetBeforeComponent(child, on, ret, rootrange)){
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool GetAfterComponent(OHOS::Ace::Platform::ComponentInfo& component,
+    const On& on, OHOS::Ace::Platform::ComponentInfo& ret,
+    std::vector<float>& rootrange)
+{
+    if (AFTER_FLAG) {
+        ret = component;
+        return true;
+    }
+
+    if (on == component) {
+        AFTER_FLAG =  true;
+    }
+
+    for (auto& child : component.children) {        
+        if (GetAfterComponent(child, on, ret, rootrange)){
+            return true;
+        }
+    }
+    return false;
+}
+
 On* On::IsBefore(const On& on)
 {
     HILOG_DEBUG("On::IsBefore");
@@ -865,22 +905,19 @@ On* On::IsBefore(const On& on)
     rootrange.push_back(info.top);
     rootrange.push_back(info.top + info.height);
     HILOG_DEBUG("GetAllComponents ok");
-    int pos = -1; // find
-    OHOS::Ace::Platform::ComponentInfo parent;
-    bool ret = GetParentComponent(info, on, pos, parent, rootrange);
-    if (!ret || pos < 0) {
-        HILOG_ERROR("not find parent Component");
-        return nullptr;
-    }
 
-    uint32_t size = parent.children.size();
-    if (size <= 1 || pos == 0) {
+    OHOS::Ace::Platform::ComponentInfo ret;
+    bool result = GetBeforeComponent(info, on, ret, rootrange);
+    if (!result) {
         HILOG_ERROR("not find before Component");
         return nullptr;
     }
-    OHOS::Ace::Platform::ComponentInfo childInfo = parent.children[pos - 1];
+    if (ret.left < 1 && ret.top < 1 && ret.width < 1 && ret.height < 1) {
+        HILOG_ERROR("find before Component invisible");
+        return nullptr;
+    }
 
-    SetComponentInfo(childInfo);
+    SetComponentInfo(ret);
     this->isEnter = true;
     return this;
 }
@@ -896,22 +933,19 @@ On* On::IsAfter(const On& on)
     rootrange.push_back(info.top);
     rootrange.push_back(info.top + info.height);
     HILOG_DEBUG("GetAllComponents ok");
-    int pos = -1;
-    OHOS::Ace::Platform::ComponentInfo parent;
-    bool ret = GetParentComponent(info, on, pos, parent, rootrange);
-    if (!ret || pos < 0) {
-        HILOG_ERROR("not find parent Component");
-        return nullptr;
-    }
-
-    uint32_t size = parent.children.size();
-    if (size <= 1 || pos <= (size - 1)) {
+    AFTER_FLAG = false;
+    OHOS::Ace::Platform::ComponentInfo ret;
+    bool result = GetAfterComponent(info, on, ret, rootrange);
+    if (!result) {
         HILOG_ERROR("not find after Component");
         return nullptr;
     }
-    OHOS::Ace::Platform::ComponentInfo childInfo = parent.children[pos + 1];
+    if (ret.left < 1 && ret.top < 1 && ret.width < 1 && ret.height < 1) {
+        HILOG_ERROR("find after Component invisible");
+        return nullptr;
+    }
 
-    SetComponentInfo(childInfo);
+    SetComponentInfo(ret);
     this->isEnter = true;
     return this;
 }
@@ -1038,38 +1072,6 @@ static void GetComponentvalue(OHOS::Ace::Platform::ComponentInfo& component,cons
     for (auto& child : component.children) {
         GetComponentvalue(child, on, ret, rootrange);
     }
-}
-
-static bool GetParentComponent(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
-    int& pos, OHOS::Ace::Platform::ComponentInfo& parent,
-    std::vector<float>& rootrange)
-{
-    if (on == component) {
-        auto componentTop = component.top;
-        auto componentBottom = component.top + component.height;
-        pos = -1; // 没有其他同辈控件了
-        if (rootrange.size() == 0) {
-            HILOG_DEBUG("GetParentComponent return invisible.");
-            return true;
-        } else if (rootrange.size() == VIEW_SIZE && componentTop >= rootrange[0] && componentBottom <= rootrange[1]) {
-            HILOG_DEBUG("GetParentComponent return visible.");
-            return true;
-        } else {
-            HILOG_DEBUG("GetParentComponent find maybe children Component.");
-            return true;
-        }
-    }
-    int i = 0;
-    for (; i < component.children.size(); i++) {
-        auto& child = component.children[i];
-        if (GetParentComponent(child, on, pos, component, rootrange)) {
-            HILOG_ERROR("find Component.");
-            parent = component;
-            pos = i; // on在parent中的顺序
-            return true;
-        }
-    }
-    return false;
 }
 
 unique_ptr<Component> Driver::FindComponent(const On& on)
