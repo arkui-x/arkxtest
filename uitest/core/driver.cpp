@@ -39,6 +39,7 @@ constexpr size_t INDEX_ONE = 1;
 constexpr size_t INDEX_TWO = 2;
 constexpr size_t INDEX_THREE = 3;
 constexpr size_t INDEX_FOUR = 4;
+static bool BEFORE_FLAG = false;
 static bool AFTER_FLAG = false;
 
 int32_t Findkeycode(const char text)
@@ -130,6 +131,7 @@ void Driver::TriggerCombineKeys(int key0, int key1, int key2)
     }
     HILOG_DEBUG("Driver::TriggerCombineKeys: %{public}d %{public}d %{public}d", key0, key1, key2);
     uiContent->ProcessKeyEvent(static_cast<int32_t>(key0), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+    DelayMs(DELAY_TIME);
     uiContent->ProcessKeyEvent(static_cast<int32_t>(key1), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
     if (key2 != -1) {
         uiContent->ProcessKeyEvent(static_cast<int32_t>(key2), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
@@ -149,11 +151,6 @@ bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, int speed)
     uint32_t steps = pointers.GetSteps();
     if (steps <= 1) {
         HILOG_ERROR("Driver::InjectMultiPointerAction no move.");
-        return false;
-    }
-    if (pointers.GetPointMap().size() < fingers ||
-        pointers.GetPointMap().begin()->second.size() < steps) {
-        HILOG_ERROR("Driver::InjectMultiPointerAction fingerPointMap_ data error.");
         return false;
     }
 
@@ -190,7 +187,7 @@ bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, int speed)
         const int distanceY = endy - starty;
         const int distance = sqrt(distanceX * distanceX + distanceY * distanceY);
         const uint32_t timeCostMs = (uint32_t)((distance * 1000) / injectSpeed);
-        const uint32_t timeOffsetMs = timeCostMs / 2;  //do
+        const uint32_t timeOffsetMs = timeCostMs / INDEX_TWO;  //do
         Ace::TouchEvent moveEvent;
         moveEvent = moveEvent.UpdatePointers();
         PackagingEvent(moveEvent, TimeStamp(currentTimeMillis + timeOffsetMs),
@@ -382,34 +379,33 @@ void Driver::Fling(UiDirection direction, int speed)
     auto uiContent = GetUIContent();
     CHECK_NULL_VOID(uiContent);
     uiContent->GetAllComponents(0, info);
-    Point to;
-    to.x = info.width / INDEX_TWO;
-    to.y = info.height / INDEX_TWO;
     Point from;
-    switch (direction)
-    {
-    case UiDirection::LEFT :
-        from.x = to.x - info.width / INDEX_FOUR;
-        from.y = to.y;
-        break;
-    case UiDirection::RIGHT :
-        from.x = to.x + info.width / INDEX_FOUR;
-        from.y = to.y;
-        break;
-    case UiDirection::UP :
-        from.x = to.x;
-        from.y = to.y - info.height / INDEX_FOUR;
-        break;
-    case UiDirection::DOWN :
-        from.x = to.x;
-        from.y = to.y + info.height / INDEX_FOUR;
-        break;
-    default:
-        from.x = to.x - info.width / INDEX_FOUR;
-        from.y = to.y;
+    from.x = info.top + info.width / INDEX_TWO;
+    from.y = info.left + info.width / INDEX_TWO;
+    Point to;
+    switch (direction) {
+        case UiDirection::LEFT :
+            to.x = from.x + info.width / INDEX_THREE;
+            to.y = from.y;
+            break;
+        case UiDirection::RIGHT :
+            to.x = from.x - info.width / INDEX_THREE;
+            to.y = from.y;
+            break;
+        case UiDirection::UP :
+            to.x = from.x;
+            to.y = from.y + info.height / INDEX_THREE;
+            break;
+        case UiDirection::DOWN :
+            to.x = from.x;
+            to.y = from.y - info.height / INDEX_THREE;
+            break;
+        default:
+            to.x = from.x - info.width / INDEX_THREE;
+            to.y = from.y;
     }
-    const int distanceX = to.x - from.x;
-    const int distanceY = to.y - from.y;
+    const int distanceX = from.x - to.x;
+    const int distanceY = from.y - to.y;
     const int distance = sqrt(distanceX * distanceX + distanceY * distanceY);
     if (distance == 0) {
         HILOG_ERROR("Driver::Fling direction ignored. distance is illegal");
@@ -425,9 +421,8 @@ void Driver::Fling(UiDirection direction, int speed)
 
     const float pointX = from.x + distanceX;
     const float pointY = from.y + distanceY;
-    const uint32_t timeOffsetMs = timeCostMs / INDEX_TWO;
     Ace::TouchEvent moveEvent;
-    PackagingEvent(moveEvent, TimeStamp(currentTimeMillis + timeOffsetMs),
+    PackagingEvent(moveEvent, TimeStamp(currentTimeMillis + timeCostMs),
         Ace::TouchType::MOVE, { pointX, pointY });
     flingEvents.push_back(moveEvent);
 
@@ -549,18 +544,21 @@ void Component::InputText(const string& text)
     HILOG_DEBUG("Component::InputText");
     auto uiContent = GetUIContent();
     CHECK_NULL_VOID(uiContent);
+
+    uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_MOVE_END), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+    uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_MOVE_END), static_cast<int32_t>(Ace::KeyAction::UP), 0);
     Driver driver;
-    for (int i = 0; i < text.length(); i++) {
+    for (uint32_t i = 0; i < text.length(); i++) {
         int32_t keycode = Findkeycode(text[i]);
         if (keycode == -1) {
             continue;
         }
         HILOG_DEBUG("Component::InputText: %{public}d", keycode);
+        driver.DelayMs(DELAY_TIME);
         uiContent->ProcessKeyEvent(static_cast<int32_t>(keycode), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
         uiContent->ProcessKeyEvent(static_cast<int32_t>(keycode), static_cast<int32_t>(Ace::KeyAction::UP), 0);
-        driver.DelayMs(DELAY_TIME);
     }
-    componentInfo_.text = text;
+    componentInfo_.text += text;
 }
 
 void Component::ClearText()
@@ -685,11 +683,6 @@ Rect Component::GetBounds()
     return rect;
 }
 
-Rect Component::GetDefaultBounds() const
-{
-    return defaultRect_;
-}
-
 void Component::PinchOut(float scale)
 {
     HILOG_DEBUG("Component::PinchOut");
@@ -697,10 +690,10 @@ void Component::PinchOut(float scale)
         HILOG_DEBUG("Component::PinchOut scale[%f] <= 1.0f", scale);
         return;
     }
-    Rect rect = GetDefaultBounds();
+    Rect rect = GetBounds();
     float width = (rect.right - rect.left);
     float height = (rect.bottom - rect.top);
-    Point point;
+    Point point; // center point
     point.x = rect.left + width / 2;
     point.y = rect.top + height / 2;
     // set new
@@ -711,6 +704,8 @@ void Component::PinchOut(float scale)
     HILOG_DEBUG("Component::PinchOut left:%f top:%f width:%f height:%f  x:%d  y:%d",
         componentInfo_.left, componentInfo_.top, componentInfo_.width, componentInfo_.height,
         point.x, point.y);
+    // auto uiContent = GetUIContent();
+
 }
 
 void Component::PinchIn(float scale)
@@ -720,12 +715,12 @@ void Component::PinchIn(float scale)
         HILOG_DEBUG("Component::PinchIn scale[%f] >= 1.0f", scale);
         return;
     }
-    Rect rect = GetDefaultBounds();
+    Rect rect = GetBounds();
     float width = (rect.right - rect.left);
     float height = (rect.bottom - rect.top);
-    Point point;
+    Point point; // center point
     point.x = rect.left + width / 2;
-    point.y = rect.top + width / 2;
+    point.y = rect.top + height / 2;
     // set new
     componentInfo_.width = width * scale;
     componentInfo_.height = height * scale;
@@ -739,11 +734,6 @@ void Component::PinchIn(float scale)
 void Component::SetComponentInfo(const OHOS::Ace::Platform::ComponentInfo& com)
 {
     componentInfo_ = com;
-    // set default Rect
-    defaultRect_.left = componentInfo_.left;
-    defaultRect_.top = componentInfo_.top;
-    defaultRect_.right = componentInfo_.left + componentInfo_.width;
-    defaultRect_.bottom = componentInfo_.top + componentInfo_.height;
 }
 
 OHOS::Ace::Platform::ComponentInfo Component::GetComponentInfo() const
@@ -857,16 +847,19 @@ On* On::Checked(bool checked)
 }
 
 static bool GetBeforeComponent(OHOS::Ace::Platform::ComponentInfo& component,
-    const On& on, OHOS::Ace::Platform::ComponentInfo& ret,
-    std::vector<float>& rootrange)
+    const On& on, OHOS::Ace::Platform::ComponentInfo& ret)
 {
-    if (on == component) {
+    if (BEFORE_FLAG) {
+        ret = component;
         return true;
     }
 
-    for (auto& child : component.children) {
-        ret = child;
-        if (GetBeforeComponent(child, on, ret, rootrange)){
+    if (on == component) {
+        BEFORE_FLAG =  true;
+    }
+
+    for (auto iter = component.children.rbegin(); iter != component.children.rend(); iter++) {
+        if (GetBeforeComponent(*iter, on, ret)) {
             return true;
         }
     }
@@ -874,8 +867,7 @@ static bool GetBeforeComponent(OHOS::Ace::Platform::ComponentInfo& component,
 }
 
 static bool GetAfterComponent(OHOS::Ace::Platform::ComponentInfo& component,
-    const On& on, OHOS::Ace::Platform::ComponentInfo& ret,
-    std::vector<float>& rootrange)
+    const On& on, OHOS::Ace::Platform::ComponentInfo& ret)
 {
     if (AFTER_FLAG) {
         ret = component;
@@ -887,7 +879,7 @@ static bool GetAfterComponent(OHOS::Ace::Platform::ComponentInfo& component,
     }
 
     for (auto& child : component.children) {        
-        if (GetAfterComponent(child, on, ret, rootrange)){
+        if (GetAfterComponent(child, on, ret)){
             return true;
         }
     }
@@ -906,8 +898,9 @@ On* On::IsBefore(const On& on)
     rootrange.push_back(info.top + info.height);
     HILOG_DEBUG("GetAllComponents ok");
 
+    BEFORE_FLAG = false;
     OHOS::Ace::Platform::ComponentInfo ret;
-    bool result = GetBeforeComponent(info, on, ret, rootrange);
+    bool result = GetBeforeComponent(info, on, ret);
     if (!result) {
         HILOG_ERROR("not find before Component");
         return nullptr;
@@ -935,7 +928,7 @@ On* On::IsAfter(const On& on)
     HILOG_DEBUG("GetAllComponents ok");
     AFTER_FLAG = false;
     OHOS::Ace::Platform::ComponentInfo ret;
-    bool result = GetAfterComponent(info, on, ret, rootrange);
+    bool result = GetAfterComponent(info, on, ret);
     if (!result) {
         HILOG_ERROR("not find after Component");
         return nullptr;
@@ -1179,23 +1172,12 @@ unique_ptr<Component> Component::ScrollSearch(const On& on)
     return component;
 }
 
-PointerMatrix* PointerMatrix::pm = nullptr;
-
-PointerMatrix::~PointerMatrix() {
-    fingerPointMap_.clear();
-    fingerNum_ = 0;
-    stepNum_ = 0;
-}
-
 PointerMatrix* PointerMatrix::Create(uint32_t fingers, uint32_t steps)
 {
-    if (pm == nullptr) {
-        pm = new PointerMatrix();
-    }
-    pm->fingerPointMap_.clear();
-    pm->fingerNum_ = fingers;
-    pm->stepNum_ = steps;
-    return pm;
+    this->fingerPointMap_.clear();
+    this->fingerNum_ = fingers;
+    this->stepNum_ = steps;
+    return this;
 }
 
 void PointerMatrix::SetPoint(uint32_t finger, uint32_t step, Point& point)

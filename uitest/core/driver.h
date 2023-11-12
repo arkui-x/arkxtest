@@ -37,7 +37,7 @@ enum CommonType : int32_t {
     LONGCLICKABLE
 };
 
-enum UiDirection {
+enum UiDirection : int32_t {
     LEFT = 0,
     RIGHT,
     UP,
@@ -133,10 +133,10 @@ static void GetComponentvalue(OHOS::Ace::Platform::ComponentInfo& component,cons
     OHOS::Ace::Platform::ComponentInfo& ret, std::vector<float>& rootrange);
 
 static bool GetBeforeComponent(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
-    OHOS::Ace::Platform::ComponentInfo& ret, std::vector<float>& rootrange);
+    OHOS::Ace::Platform::ComponentInfo& ret);
 
 static bool GetAfterComponent(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
-    OHOS::Ace::Platform::ComponentInfo& ret, std::vector<float>& rootrange);
+    OHOS::Ace::Platform::ComponentInfo& ret);
 
 class Component {
 public:
@@ -170,9 +170,6 @@ public:
 
 private:
     OHOS::Ace::Platform::ComponentInfo componentInfo_;
-    // 建议用在SetComponentInfo等，赋值初始化之后。捏合放大与缩小的基础数据
-    Rect GetDefaultBounds() const;
-    Rect defaultRect_;
 };
 
 class Driver {
@@ -203,8 +200,8 @@ private:
 class PointerMatrix {
 public:
     PointerMatrix() = default;
-    ~PointerMatrix();
-    static PointerMatrix* Create(uint32_t fingers, uint32_t steps);
+    ~PointerMatrix() = default;
+    PointerMatrix* Create(uint32_t fingers, uint32_t steps);
     void SetPoint(uint32_t finger, uint32_t step, Point& point);
     PointerMatrix& operator=(PointerMatrix&& other);
     uint32_t GetSteps() const;
@@ -215,7 +212,6 @@ public:
 private:
     uint32_t fingerNum_ = 0;
     uint32_t stepNum_ = 0;
-    static PointerMatrix* pm;
 };
 
 } // namespace OHOS::UiTest
