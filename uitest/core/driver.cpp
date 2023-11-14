@@ -39,6 +39,8 @@ constexpr size_t INDEX_ONE = 1;
 constexpr size_t INDEX_TWO = 2;
 constexpr size_t INDEX_THREE = 3;
 constexpr size_t INDEX_FOUR = 4;
+constexpr size_t INDEX_FIVE = 5;
+constexpr size_t INDEX_SIX = 6;
 static bool BEFORE_FLAG = false;
 static bool AFTER_FLAG = false;
 
@@ -379,29 +381,37 @@ void Driver::Fling(UiDirection direction, int speed)
     auto uiContent = GetUIContent();
     CHECK_NULL_VOID(uiContent);
     uiContent->GetAllComponents(0, info);
-    Point from;
-    from.x = info.top + info.width / INDEX_TWO;
-    from.y = info.left + info.width / INDEX_TWO;
-    Point to;
+    Point from, to;
+    // 滑动距离要大于1/2才能更有效的滑动屏幕，尤其在左右滑动时
     switch (direction) {
-        case UiDirection::LEFT :
-            to.x = from.x + info.width / INDEX_THREE;
+        case UiDirection::LEFT : // 往左滑
+            from.x = info.top + info.width / INDEX_SIX;
+            from.y = info.left + info.height / INDEX_TWO; // 横向居中
+            to.x = from.x + info.width * INDEX_TWO / INDEX_THREE;
             to.y = from.y;
             break;
-        case UiDirection::RIGHT :
-            to.x = from.x - info.width / INDEX_THREE;
+        case UiDirection::RIGHT : // 往右滑
+            from.x = info.top + info.width * INDEX_FIVE / INDEX_SIX;
+            from.y = info.left + info.height / INDEX_TWO; // 横向居中
+            to.x = from.x - info.width * INDEX_TWO / INDEX_THREE;
             to.y = from.y;
             break;
-        case UiDirection::UP :
+        case UiDirection::UP : // 往上滑
+            from.x = info.top + info.width / INDEX_TWO; // 纵向居中
+            from.y = info.left + info.height / INDEX_SIX;
             to.x = from.x;
-            to.y = from.y + info.height / INDEX_THREE;
+            to.y = from.y + info.height * INDEX_TWO / INDEX_THREE;
             break;
-        case UiDirection::DOWN :
+        case UiDirection::DOWN : // 往下滑
+            from.x = info.top + info.width / INDEX_TWO; // 纵向居中
+            from.y = info.left + info.height * INDEX_FIVE / INDEX_SIX;
             to.x = from.x;
-            to.y = from.y - info.height / INDEX_THREE;
+            to.y = from.y - info.height * INDEX_TWO / INDEX_THREE;
             break;
         default:
-            to.x = from.x - info.width / INDEX_THREE;
+            from.x = info.top + info.width / INDEX_SIX;
+            from.y = info.left + info.height / INDEX_TWO; // 横向居中
+            to.x = from.x + info.width * INDEX_TWO / INDEX_THREE;
             to.y = from.y;
     }
     const int distanceX = from.x - to.x;
