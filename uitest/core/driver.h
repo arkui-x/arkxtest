@@ -203,7 +203,8 @@ public:
     void Fling(UiDirection direction, int speed = 0);
     unique_ptr<Component> FindComponent(const On& on);
     vector<unique_ptr<Component>> FindComponents(const On& on);
-
+    void CalculateDirection(const OHOS::Ace::Platform::ComponentInfo info,
+        const UiDirection& direction, Point& from, Point& to);
 };
 
 class PointerMatrix {

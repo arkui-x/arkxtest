@@ -133,7 +133,6 @@ void Driver::TriggerCombineKeys(int key0, int key1, int key2)
     }
     HILOG_DEBUG("Driver::TriggerCombineKeys: %{public}d %{public}d %{public}d", key0, key1, key2);
     uiContent->ProcessKeyEvent(static_cast<int32_t>(key0), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
-    DelayMs(DELAY_TIME);
     uiContent->ProcessKeyEvent(static_cast<int32_t>(key1), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
     if (key2 != -1) {
         uiContent->ProcessKeyEvent(static_cast<int32_t>(key2), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
@@ -144,7 +143,6 @@ void Driver::TriggerCombineKeys(int key0, int key1, int key2)
     if (key2 != -1) {
         uiContent->ProcessKeyEvent(static_cast<int32_t>(key2), static_cast<int32_t>(Ace::KeyAction::UP), 0);
     }
-    DelayMs(DELAY_TIME);
 }
 
 bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, int speed)
@@ -370,18 +368,9 @@ void Driver::Fling(const Point& from, const Point& to, int stepLen, int speed)
     uiContent->ProcessBasicEvent(flingEvents);
 }
 
-void Driver::Fling(UiDirection direction, int speed)
+void Driver::CalculateDirection(const OHOS::Ace::Platform::ComponentInfo info,
+    const UiDirection& direction, Point& from, Point& to)
 {
-    UiOpArgs options;
-    uint32_t flingSpeed = speed;
-    if (speed < options.minFlingVelocityPps_ || speed > options.maxFlingVelocityPps_) {
-        flingSpeed = options.defaultVelocityPps_;
-    }
-    OHOS::Ace::Platform::ComponentInfo info;
-    auto uiContent = GetUIContent();
-    CHECK_NULL_VOID(uiContent);
-    uiContent->GetAllComponents(0, info);
-    Point from, to;
     // 滑动距离要大于1/2才能更有效的滑动屏幕，尤其在左右滑动时
     switch (direction) {
         case UiDirection::LEFT : // 往左滑
@@ -414,6 +403,21 @@ void Driver::Fling(UiDirection direction, int speed)
             to.x = from.x + info.width * INDEX_TWO / INDEX_THREE;
             to.y = from.y;
     }
+}
+
+void Driver::Fling(UiDirection direction, int speed)
+{
+    UiOpArgs options;
+    uint32_t flingSpeed = speed;
+    if (speed < options.minFlingVelocityPps_ || speed > options.maxFlingVelocityPps_) {
+        flingSpeed = options.defaultVelocityPps_;
+    }
+    OHOS::Ace::Platform::ComponentInfo info;
+    auto uiContent = GetUIContent();
+    CHECK_NULL_VOID(uiContent);
+    uiContent->GetAllComponents(0, info);
+    Point from, to;
+    CalculateDirection(info, direction, from, to);
     const int distanceX = from.x - to.x;
     const int distanceY = from.y - to.y;
     const int distance = sqrt(distanceX * distanceX + distanceY * distanceY);
@@ -563,12 +567,12 @@ void Component::InputText(const string& text)
         if (keycode == -1) {
             continue;
         }
+        componentInfo_.text += text[i];
         HILOG_DEBUG("Component::InputText: %{public}d", keycode);
         driver.DelayMs(DELAY_TIME);
         uiContent->ProcessKeyEvent(static_cast<int32_t>(keycode), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
         uiContent->ProcessKeyEvent(static_cast<int32_t>(keycode), static_cast<int32_t>(Ace::KeyAction::UP), 0);
     }
-    componentInfo_.text += text;
 }
 
 void Component::ClearText()
@@ -1196,7 +1200,7 @@ unique_ptr<Component> Component::ScrollSearch(const On& on)
     vector<shared_ptr<Component>> allComponents;
     GetAllComponentInfos(componentInfo_, rootrange, allComponents, nullptr);
     vector<shared_ptr<Component>> componentsInRange = GetComponentsInRange(on, allComponents);
-    unique_ptr<Component> component = GetComponentvalue(on, componentsInRange);
+    unique_ptr<Component> component = move(GetComponentvalue(on, componentsInRange));
     if (component == nullptr) {
         HILOG_ERROR("not find Component");
         return nullptr;
