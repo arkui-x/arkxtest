@@ -34,7 +34,10 @@ enum CommonType : int32_t {
     SCROLLABLE,
     ENABLED,
     FOCUSED,
-    LONGCLICKABLE
+    LONGCLICKABLE,
+    ISBEFORE,
+    ISAFTER,
+    WITHIN
 };
 
 enum UiDirection : int32_t {
@@ -91,6 +94,7 @@ public:
 };
 
 class PointerMatrix;
+class Component;
 
 class On {
 public:
@@ -105,9 +109,9 @@ public:
     On* Scrollable(bool scrollable);
     On* Checkable(bool checkable);
     On* Checked(bool checked);
-    On* IsBefore(const On& on);
-    On* IsAfter(const On& on);
-    On* Within(const On& on);
+    On* IsBefore(On* on);
+    On* IsAfter(On* on);
+    On* Within(On* on);
 
     shared_ptr<string> id;
     shared_ptr<string> text;
@@ -120,6 +124,9 @@ public:
     shared_ptr<bool> selected;
     shared_ptr<bool> checked;
     shared_ptr<bool> checkable;
+    vector<On*> isBefore;
+    vector<On*> isAfter;
+    vector<On*> within;
     MatchPattern pattern_ = MatchPattern::EQUALS;
 
     bool CompareText(const string& text) const;
@@ -164,12 +171,15 @@ public:
     void PinchIn(float scale);
 
     void SetComponentInfo(const OHOS::Ace::Platform::ComponentInfo& com);
-    OHOS::Ace::Platform::ComponentInfo GetComponentInfo() const;
+    OHOS::Ace::Platform::ComponentInfo GetComponentInfo();
+    void SetParentComponent(const shared_ptr<Component> parent);
+    shared_ptr<Component> GetParentComponent();
     unique_ptr<Component> ScrollSearch(const On& on);
     Point GetBoundsCenter();
 
 private:
     OHOS::Ace::Platform::ComponentInfo componentInfo_;
+    shared_ptr<Component> parentComponent;
 };
 
 class Driver {

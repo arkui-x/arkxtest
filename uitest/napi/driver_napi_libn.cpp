@@ -259,88 +259,69 @@ napi_value OnNExporter::Checkable(napi_env env, napi_callback_info info)
     return OnTemplate(env, info, CommonType::CHECKABLE);
 }
 
-napi_value OnNExporter::IsBefore(napi_env env, napi_callback_info info)
+static napi_value RelativeOnTemplate(napi_env env, napi_callback_info info, int32_t type)
 {
-    HILOG_DEBUG("OnNExporter::IsBefore begin");
+    HILOG_DEBUG("Uitest:: RelativeOnTemplate begin.");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ONE)) {
-        HILOG_ERROR("OnNExporter::IsBefore Number of arguments unmatched");
+        HILOG_ERROR("Within Number of arguments unmatched");
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
     }
 
-    // on::Text
+    auto relativeOn = NClass::GetEntityOf<On>(env, NVal(env, funcArg[NARG_POS::FIRST]).val_);
+    if (!relativeOn) {
+        HILOG_ERROR("Cannot get entity of parameterOn");
+        return nullptr;
+    }
+
     napi_value thisVar = Instantiate(env, funcArg.GetThisVar());
-    auto onVar = NClass::GetEntityOf<On>(env, thisVar);
-    if (!onVar) {
-        HILOG_ERROR("OnNExporter::IsBefore Cannot get entity of on");
+    auto on = NClass::GetEntityOf<On>(env, thisVar);
+    if (on == nullptr) {
+        HILOG_ERROR("Cannot get entity of on");
         return nullptr;
     }
-
-    auto on = NClass::GetEntityOf<On>(env, NVal(env, funcArg[NARG_POS::FIRST]).val_);
-    if (!on) {
-        HILOG_ERROR("OnNExporter::IsBefore Cannot get entity of on");
-        return nullptr;
+    switch (type)
+    {
+    case CommonType::ISBEFORE:
+        if (!on->IsBefore(relativeOn)) {
+            HILOG_ERROR("Cannot put attributions to on");
+            return nullptr;
+        }
+        break;
+    case CommonType::ISAFTER:
+        if (!on->IsAfter(relativeOn)) {
+            HILOG_ERROR("Cannot put attributions to on");
+            return nullptr;
+        }
+        break;
+    case CommonType::WITHIN:
+        if (!on->Within(relativeOn)) {
+            HILOG_ERROR("Cannot put attributions to on");
+            return nullptr;
+        }
+        break;
+    default:
+        HILOG_ERROR("Cannot read type of RelativeOn");
+        break;
     }
-
-    onVar->IsBefore(*on);
-    HILOG_DEBUG("OnNExporter::IsBefore end.");
+    HILOG_DEBUG("Uitest:: RelativeOnTemplate end.");
     return thisVar;
+}
+
+napi_value OnNExporter::IsBefore(napi_env env, napi_callback_info info)
+{
+    return RelativeOnTemplate(env, info, CommonType::ISBEFORE);
 }
 
 napi_value OnNExporter::IsAfter(napi_env env, napi_callback_info info)
 {
-    HILOG_DEBUG("OnNExporter::IsAfter begin");
-    NFuncArg funcArg(env, info);
-    if (!funcArg.InitArgs(NARG_CNT::ONE)) {
-        HILOG_ERROR("OnNExporter::IsAfter Number of arguments unmatched");
-        NError(E_PARAMS).ThrowErr(env);
-        return nullptr;
-    }
-
-    napi_value thisVar = Instantiate(env, funcArg.GetThisVar());
-    auto onVar = NClass::GetEntityOf<On>(env, thisVar);
-    if (!onVar) {
-        HILOG_ERROR("OnNExporter::IsAfter Cannot get entity of on");
-        return nullptr;
-    }
-
-    auto on = NClass::GetEntityOf<On>(env, NVal(env, funcArg[NARG_POS::FIRST]).val_);
-    if (!on) {
-        HILOG_ERROR("OnNExporter::IsAfter Cannot get entity of on");
-        return nullptr;
-    }
-
-    onVar->IsAfter(*on);
-    HILOG_DEBUG("OnNExporter::IsAfter end.");
-    return thisVar;
+    return RelativeOnTemplate(env, info, CommonType::ISAFTER);
 }
 
 napi_value OnNExporter::Within(napi_env env, napi_callback_info info)
 {
-    HILOG_DEBUG("OnNExporter::Within begin");
-    NFuncArg funcArg(env, info);
-    if (!funcArg.InitArgs(NARG_CNT::ONE)) {
-        HILOG_ERROR("OnNExporter::Within Number of arguments unmatched");
-        NError(E_PARAMS).ThrowErr(env);
-        return nullptr;
-    }
-    napi_value thisVar = Instantiate(env, funcArg.GetThisVar());
-    auto onVar = NClass::GetEntityOf<On>(env, thisVar);
-    if (!onVar) {
-        HILOG_ERROR("OnNExporter::Within Cannot get entity of on");
-        return nullptr;
-    }
-
-    auto on = NClass::GetEntityOf<On>(env, NVal(env, funcArg[NARG_POS::FIRST]).val_);
-    if (!on) {
-        HILOG_ERROR("OnNExporter::Within Cannot get entity of on");
-        return nullptr;
-    }
-
-    onVar->Within(*on);
-    HILOG_DEBUG("OnNExporter::Within end.");
-    return thisVar;
+    return RelativeOnTemplate(env, info, CommonType::WITHIN);
 }
 
 static napi_value OnInitializer(napi_env env, napi_callback_info info)
