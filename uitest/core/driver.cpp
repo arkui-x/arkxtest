@@ -966,21 +966,6 @@ bool On::CompareText(const string& text) const
     return false;
 }
 
-void On::SetComponentInfo(OHOS::Ace::Platform::ComponentInfo& info)
-{
-    this->id = std::make_shared<string>(info.compid);
-    this->text = std::make_shared<string>(info.text);
-    this->type = std::make_shared<string>(info.type);
-    this->clickable = std::make_shared<bool>(info.clickable);
-    this->longClickable = std::make_shared<bool>(info.longClickable);
-    this->scrollable = std::make_shared<bool>(info.scrollable);
-    this->enabled = std::make_shared<bool>(info.enabled);
-    this->focused = std::make_shared<bool>(info.focused);
-    this->selected = std::make_shared<bool>(info.selected);
-    this->checked = std::make_shared<bool>(info.checked);
-    this->checkable = std::make_shared<bool>(info.checkable);
-}
-
 bool operator == (const On& on, const OHOS::Ace::Platform::ComponentInfo& info)
 {
     if (!on.isEnter) {
@@ -1237,8 +1222,6 @@ unique_ptr<Component> Component::ScrollSearch(const On& on)
             driver.Swipe(startX, startY, startX, startY - stepLen, 200);
         }
     }
-    // auto component = make_unique<Component>();
-    // component->SetComponentInfo(ret);
     return component;
 }
 

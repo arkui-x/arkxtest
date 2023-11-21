@@ -131,8 +131,6 @@ public:
 
     bool CompareText(const string& text) const;
     bool isEnter = false;
-private:
-    void SetComponentInfo(OHOS::Ace::Platform::ComponentInfo& info);
 };
 
 bool operator == (const On& on, const OHOS::Ace::Platform::ComponentInfo& info);
