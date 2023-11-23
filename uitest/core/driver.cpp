@@ -145,7 +145,7 @@ void Driver::TriggerCombineKeys(int key0, int key1, int key2)
     }
 }
 
-bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, int speed)
+bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed)
 {
     uint32_t fingers = pointers.GetFingers();
     uint32_t steps = pointers.GetSteps();
@@ -270,7 +270,7 @@ void Driver::LongClick(int x, int y)
     uiContent->ProcessBasicEvent(clickEvents);
 }
 
-void Driver::Swipe(int startx, int starty, int endx, int endy, int speed)
+void Driver::Swipe(int startx, int starty, int endx, int endy, uint32_t speed)
 {
     HILOG_DEBUG("Driver::Swipe from (%d, %d) to (%d, %d), speed:%d", startx, starty, endx, endy, speed);
     std::vector<Ace::TouchEvent> swipeEvents;
@@ -319,7 +319,7 @@ void Driver::Swipe(int startx, int starty, int endx, int endy, int speed)
     uiContent->ProcessBasicEvent(swipeEvents);
 }
 
-void Driver::Fling(const Point& from, const Point& to, int stepLen, int speed)
+void Driver::Fling(const Point& from, const Point& to, int stepLen, uint32_t speed)
 {
     HILOG_DEBUG(
         "Driver::Fling from (%d, %d) to (%d, %d), stepLen:%d, speed:%d", from.x, from.y, to.x, to.y, stepLen, speed);
@@ -403,7 +403,7 @@ void Driver::CalculateDirection(const OHOS::Ace::Platform::ComponentInfo& info,
     }
 }
 
-void Driver::Fling(UiDirection direction, int speed)
+void Driver::Fling(UiDirection direction, uint32_t speed)
 {
     UiOpArgs options;
     uint32_t flingSpeed = speed;
@@ -726,8 +726,6 @@ void Component::PinchOut(float scale)
     Point center = GetBoundsCenter();
     // 纵向捏合放大，默认起点两指距离为高度的一半
     float disH = componentInfo_.height * scaleOpt / INDEX_TWO;
-    Driver driver;
-    Point size = driver.getDisplaySize();
     fromUp.x = center.x;
     fromUp.y = center.y - componentInfo_.height / INDEX_FOUR;
     fromDown.x = center.x;
@@ -779,7 +777,6 @@ void Component::PinchIn(float scale)
     Point fromUp, toUp, fromDown, toDown;
     Point center = GetBoundsCenter();
     // 纵向捏合缩小，默认起点两指距离为高度减1
-    float disW = componentInfo_.width * scale;
     float disH = (componentInfo_.height - INDEX_TWO) * scale;
     fromUp.x = center.x;
     fromUp.y = rect.top + INDEX_ONE;

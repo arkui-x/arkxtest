@@ -190,18 +190,18 @@ public:
 
     void TriggerKey(int keyCode);
     void TriggerCombineKeys(int key0, int key1, int key2 = -1);
-    bool InjectMultiPointerAction(PointerMatrix& pointers, int speed = 0);
+    bool InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed = 0);
     
     void DelayMs(int dur);
     void Click(int x, int y);
     void DoubleClick(int x, int y);
     void LongClick(int x, int y);
-    void Swipe(int startx, int starty, int endx, int endy, int speed);
-    void Fling(const Point& from, const Point& to, int stepLen, int speed = 0);
-    void Fling(UiDirection direction, int speed = 0);
+    void Swipe(int startx, int starty, int endx, int endy, uint32_t speed);
+    void Fling(const Point& from, const Point& to, int stepLen, uint32_t speed = 0);
+    void Fling(UiDirection direction, uint32_t speed = 0);
     unique_ptr<Component> FindComponent(const On& on);
     vector<unique_ptr<Component>> FindComponents(const On& on);
-    void CalculateDirection(const OHOS::Ace::Platform::ComponentInfo info,
+    void CalculateDirection(const OHOS::Ace::Platform::ComponentInfo& info,
         const UiDirection& direction, Point& from, Point& to);
 };
 
