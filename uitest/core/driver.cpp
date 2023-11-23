@@ -175,31 +175,29 @@ bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, int speed)
     std::vector<Ace::TouchEvent> injectEvents;
     int64_t currentTimeMillis = getCurrentTimeMillis();
     for (auto it : pointPairVec) {
-        int startx = it.from.x;
-        int starty = it.from.y;
-        int endx = it.to.x;
-        int endy = it.to.y;
+        Point start = it.from;
+        Point end = it.to;
         Ace::TouchEvent downEvent;
-        PackagingEvent(downEvent, TimeStamp(currentTimeMillis), Ace::TouchType::DOWN, { startx, starty });
+        PackagingEvent(downEvent, TimeStamp(currentTimeMillis), Ace::TouchType::DOWN, start);
         injectEvents.push_back(downEvent);
 
-        const int distanceX = endx - startx;
-        const int distanceY = endy - starty;
+        const int distanceX = end.x - start.x;
+        const int distanceY = end.y - start.y;
         const int distance = sqrt(distanceX * distanceX + distanceY * distanceY);
         const uint32_t timeCostMs = (uint32_t)((distance * 1000) / injectSpeed);
-        const uint32_t timeOffsetMs = timeCostMs / INDEX_TWO;  //do
+        const uint32_t timeOffsetMs = timeCostMs / INDEX_TWO;
         Ace::TouchEvent moveEvent;
         moveEvent = moveEvent.UpdatePointers();
         PackagingEvent(moveEvent, TimeStamp(currentTimeMillis + timeOffsetMs),
-            Ace::TouchType::MOVE, { endx, endy });
+            Ace::TouchType::MOVE, end);
         injectEvents.push_back(moveEvent);
 
         Ace::TouchEvent upEvent;
-        PackagingEvent(upEvent, TimeStamp(currentTimeMillis + timeCostMs), Ace::TouchType::UP, { endx, endy });
+        PackagingEvent(upEvent, TimeStamp(currentTimeMillis + timeCostMs), Ace::TouchType::UP, end);
         injectEvents.push_back(upEvent);
 
-        uiContent->ProcessBasicEvent(injectEvents);
     }
+    uiContent->ProcessBasicEvent(injectEvents);
 
     return true;
 }
@@ -367,8 +365,8 @@ void Driver::Fling(const Point& from, const Point& to, int stepLen, int speed)
     CHECK_NULL_VOID(uiContent);
     uiContent->ProcessBasicEvent(flingEvents);
 }
-
-void Driver::CalculateDirection(const OHOS::Ace::Platform::ComponentInfo info,
+// 默认左上角原点
+void Driver::CalculateDirection(const OHOS::Ace::Platform::ComponentInfo& info,
     const UiDirection& direction, Point& from, Point& to)
 {
     // 滑动距离要大于1/2才能更有效的滑动屏幕，尤其在左右滑动时
@@ -376,31 +374,31 @@ void Driver::CalculateDirection(const OHOS::Ace::Platform::ComponentInfo info,
         case UiDirection::LEFT : // 往左滑
             from.x = info.top + info.width / INDEX_SIX;
             from.y = info.left + info.height / INDEX_TWO; // 横向居中
-            to.x = from.x + info.width * INDEX_TWO / INDEX_THREE;
+            to.x = from.x - info.width * INDEX_TWO / INDEX_THREE;
             to.y = from.y;
             break;
         case UiDirection::RIGHT : // 往右滑
             from.x = info.top + info.width * INDEX_FIVE / INDEX_SIX;
             from.y = info.left + info.height / INDEX_TWO; // 横向居中
-            to.x = from.x - info.width * INDEX_TWO / INDEX_THREE;
+            to.x = from.x + info.width * INDEX_TWO / INDEX_THREE;
             to.y = from.y;
             break;
         case UiDirection::UP : // 往上滑
             from.x = info.top + info.width / INDEX_TWO; // 纵向居中
             from.y = info.left + info.height / INDEX_SIX;
             to.x = from.x;
-            to.y = from.y + info.height * INDEX_TWO / INDEX_THREE;
+            to.y = from.y - info.height * INDEX_TWO / INDEX_THREE;
             break;
         case UiDirection::DOWN : // 往下滑
             from.x = info.top + info.width / INDEX_TWO; // 纵向居中
             from.y = info.left + info.height * INDEX_FIVE / INDEX_SIX;
             to.x = from.x;
-            to.y = from.y - info.height * INDEX_TWO / INDEX_THREE;
+            to.y = from.y + info.height * INDEX_TWO / INDEX_THREE;
             break;
         default:
             from.x = info.top + info.width / INDEX_SIX;
             from.y = info.left + info.height / INDEX_TWO; // 横向居中
-            to.x = from.x + info.width * INDEX_TWO / INDEX_THREE;
+            to.x = from.x - info.width * INDEX_TWO / INDEX_THREE;
             to.y = from.y;
     }
 }
@@ -697,6 +695,23 @@ Rect Component::GetBounds()
     return rect;
 }
 
+void MakeTouchEvent(int64_t curTimeMillis, uint32_t timeCostMs, Point from, Point to,
+    std::vector<Ace::TouchEvent>& moveEvents)
+{
+     Ace::TouchEvent downEvent;
+    PackagingEvent(downEvent, TimeStamp(curTimeMillis), Ace::TouchType::DOWN, from);
+    moveEvents.push_back(downEvent);
+
+    Ace::TouchEvent moveEvent;
+    PackagingEvent(moveEvent, TimeStamp(curTimeMillis + timeCostMs),
+        Ace::TouchType::MOVE, to);
+    moveEvents.push_back(moveEvent);
+
+    Ace::TouchEvent upEvent;
+    PackagingEvent(upEvent, TimeStamp(curTimeMillis + timeCostMs), Ace::TouchType::UP, to);
+    moveEvents.push_back(upEvent);
+}
+
 void Component::PinchOut(float scale)
 {
     HILOG_DEBUG("Component::PinchOut");
@@ -704,45 +719,105 @@ void Component::PinchOut(float scale)
         HILOG_DEBUG("Component::PinchOut scale[%f] <= 1.0f", scale);
         return;
     }
+    float scaleOpt = scale - 1.0;
     Rect rect = GetBounds();
-    float width = (rect.right - rect.left);
-    float height = (rect.bottom - rect.top);
-    Point point; // center point
-    point.x = rect.left + width / 2;
-    point.y = rect.top + height / 2;
+    // 捏合 两指操作距离 = 两指起点距离 * 倍数
+    Point fromUp, toUp, fromDown, toDown;
+    Point center = GetBoundsCenter();
+    // 纵向捏合放大，默认起点两指距离为高度的一半
+    float disH = componentInfo_.height * scaleOpt / INDEX_TWO;
+    Driver driver;
+    Point size = driver.getDisplaySize();
+    fromUp.x = center.x;
+    fromUp.y = center.y - componentInfo_.height / INDEX_FOUR;
+    fromDown.x = center.x;
+    fromDown.y = center.y + componentInfo_.height / INDEX_FOUR;
+    toUp.x = fromUp.x;
+    toUp.y = fromUp.y - disH;
+    toDown.x = fromDown.x;
+    toDown.y = fromDown.y + disH;
+
+    const int distanceX = fromUp.x - toUp.x;
+    const int distanceY = fromUp.y - toUp.y;
+    const int distance = sqrt(distanceX * distanceX + distanceY * distanceY);
+    if (distance == 0) {
+        HILOG_ERROR("Driver::PinchOut direction ignored. distance is illegal");
+        return;
+    }
+    UiOpArgs options;
+    uint32_t flingSpeed = options.defaultVelocityPps_;
+    const uint32_t timeCostMs = (uint32_t)((distance * 1000) / flingSpeed);
+    int64_t currentTimeMillis = getCurrentTimeMillis();
+    std::vector<Ace::TouchEvent> flingEvents, flingEvents2;
+    MakeTouchEvent(currentTimeMillis, timeCostMs, fromUp, toUp, flingEvents);
+    MakeTouchEvent(currentTimeMillis, timeCostMs, fromDown, toDown, flingEvents2);
+
+    auto uiContent = GetUIContent();
+    CHECK_NULL_VOID(uiContent);
+    uiContent->ProcessBasicEvent(flingEvents);
+    uiContent->ProcessBasicEvent(flingEvents2);
+
     // set new
-    componentInfo_.width = width * scale;
-    componentInfo_.height = height * scale;
-    componentInfo_.left = point.x - componentInfo_.width / 2;
-    componentInfo_.top = point.y - componentInfo_.height / 2;
+    componentInfo_.width = componentInfo_.width * scale;
+    componentInfo_.height = componentInfo_.height * scale;
+    componentInfo_.left = center.x - componentInfo_.width / 2;
+    componentInfo_.top = center.y - componentInfo_.height / 2;
     HILOG_DEBUG("Component::PinchOut left:%f top:%f width:%f height:%f  x:%d  y:%d",
         componentInfo_.left, componentInfo_.top, componentInfo_.width, componentInfo_.height,
-        point.x, point.y);
-    // auto uiContent = GetUIContent();
-
+        center.x, center.y);
 }
 
 void Component::PinchIn(float scale)
 {
     HILOG_DEBUG("Component::PinchIn");
-    if (scale >= 1.0f) {
-        HILOG_DEBUG("Component::PinchIn scale[%f] >= 1.0f", scale);
+    if (scale >= 1.0f || scale <= 0.001f) {
+        HILOG_DEBUG("Component::PinchIn scale[%f] invalid", scale);
         return;
     }
     Rect rect = GetBounds();
-    float width = (rect.right - rect.left);
-    float height = (rect.bottom - rect.top);
-    Point point; // center point
-    point.x = rect.left + width / 2;
-    point.y = rect.top + height / 2;
+    // 捏合 两指操作距离 = 两指起点距离 * 倍数
+    Point fromUp, toUp, fromDown, toDown;
+    Point center = GetBoundsCenter();
+    // 纵向捏合缩小，默认起点两指距离为高度减1
+    float disW = componentInfo_.width * scale;
+    float disH = (componentInfo_.height - INDEX_TWO) * scale;
+    fromUp.x = center.x;
+    fromUp.y = rect.top + INDEX_ONE;
+    fromDown.x = center.x;
+    fromDown.y = rect.bottom - INDEX_ONE;
+    toUp.x = fromUp.x;
+    toUp.y = fromUp.y + disH;
+    toDown.x = fromDown.x;
+    toDown.y = fromDown.y - disH;
+
+    const int distanceX = fromUp.x - toUp.x;
+    const int distanceY = fromUp.y - toUp.y;
+    const int distance = sqrt(distanceX * distanceX + distanceY * distanceY);
+    if (distance == 0) {
+        HILOG_ERROR("Driver::Fling direction ignored. distance is illegal");
+        return;
+    }
+    UiOpArgs options;
+    uint32_t flingSpeed = options.defaultVelocityPps_;
+    const uint32_t timeCostMs = (uint32_t)((distance * 1000) / flingSpeed);
+    int64_t currentTimeMillis = getCurrentTimeMillis();
+    std::vector<Ace::TouchEvent> flingEvents, flingEvents2;
+    MakeTouchEvent(currentTimeMillis, timeCostMs, fromUp, toUp, flingEvents);
+    MakeTouchEvent(currentTimeMillis, timeCostMs, fromDown, toDown, flingEvents2);
+
+    auto uiContent = GetUIContent();
+    CHECK_NULL_VOID(uiContent);
+    uiContent->ProcessBasicEvent(flingEvents);
+    uiContent->ProcessBasicEvent(flingEvents2);
+
     // set new
-    componentInfo_.width = width * scale;
-    componentInfo_.height = height * scale;
-    componentInfo_.left = point.x - componentInfo_.width / 2;
-    componentInfo_.top = point.y - componentInfo_.height / 2;
-    HILOG_DEBUG("Component::PinchIn left:%f top:%f width:%f height:%f  x:%d  y:%d",
+    componentInfo_.width = componentInfo_.width * scale;
+    componentInfo_.height = componentInfo_.height * scale;
+    componentInfo_.left = center.x - componentInfo_.width / 2;
+    componentInfo_.top = center.y - componentInfo_.height / 2;
+    HILOG_DEBUG("Component::PinchOut left:%f top:%f width:%f height:%f  x:%d  y:%d",
         componentInfo_.left, componentInfo_.top, componentInfo_.width, componentInfo_.height,
-        point.x, point.y);
+        center.x, center.y);
 }
 
 void Component::SetComponentInfo(const OHOS::Ace::Platform::ComponentInfo& com)
