@@ -135,7 +135,7 @@ public:
 
 bool operator == (const On& on, const OHOS::Ace::Platform::ComponentInfo& info);
 static void GetComponentvalue(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
-    OHOS::Ace::Platform::ComponentInfo& ret, std::vector<float>& rootrange);
+    OHOS::Ace::Platform::ComponentInfo& ret, Rect& rect);
 
 static bool GetBeforeComponent(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
     OHOS::Ace::Platform::ComponentInfo& ret);
@@ -177,7 +177,7 @@ public:
 
 private:
     OHOS::Ace::Platform::ComponentInfo componentInfo_;
-    shared_ptr<Component> parentComponent;
+    shared_ptr<Component> parentComponent_;
 };
 
 class Driver {

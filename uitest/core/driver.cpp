@@ -29,7 +29,6 @@ namespace OHOS::UiTest {
 using namespace std;
 
 static constexpr const int32_t DOUBLE_CLICK = 2;
-static constexpr const int32_t VIEW_SIZE = 2;
 static constexpr const char UPPER_A = 'A';
 static constexpr const char LOWER_A = 'a';
 static constexpr const char DEF_NUMBER = '0';
@@ -94,6 +93,16 @@ static void PackagingEvent(Ace::TouchEvent& event, Ace::TimeStamp time, Ace::Tou
     event.screenX = point.x;
     event.screenY = point.y;
     event = event.UpdatePointers();
+}
+
+Rect GetBounds(const OHOS::Ace::Platform::ComponentInfo& component)
+{
+    Rect rect;
+    rect.left = component.left;
+    rect.right = component.left + component.width;
+    rect.top = component.top;
+    rect.bottom = component.top + component.height;
+    return rect;
 }
 
 bool Driver::AssertComponentExist(const On& on)
@@ -579,11 +588,10 @@ void Component::ClearText()
     auto uiContent = GetUIContent();
     CHECK_NULL_VOID(uiContent);
 
+    uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_MOVE_END), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+    uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_MOVE_END), static_cast<int32_t>(Ace::KeyAction::UP), 0);
     Driver driver;
     for (int i = 0; i < componentInfo_.text.length(); i++) {
-        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_DPAD_RIGHT), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
-        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_DPAD_RIGHT), static_cast<int32_t>(Ace::KeyAction::UP), 0);
-        driver.DelayMs(DELAY_TIME);
         uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_DEL), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
         uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_DEL), static_cast<int32_t>(Ace::KeyAction::UP), 0);
         driver.DelayMs(DELAY_TIME);
@@ -680,11 +688,18 @@ void Component::ScrollToBottom(int speed)
     }
 }
 /*
-left    number  是  是  矩形区域的左边界，单位为px，该参数为整数。
-top number  是  是  矩形区域的上边界，单位为px，该参数应为整数。
-width   number  是  是  矩形区域的宽度，单位为px，该参数应为整数。
-height  number  是  是  矩形区域的高度，单位为px，该参数应为整数。
-*/ 
+componentInfo_:
+left    number    矩形区域的左边界，单位为px，该参数为整数。
+top number    矩形区域的上边界，单位为px，该参数应为整数。
+width   number    矩形区域的宽度，单位为px，该参数应为整数。
+height  number    矩形区域的高度，单位为px，该参数应为整数。
+
+Rect:
+left    number  控件边框的左上角的X坐标。
+top    number  控件边框的左上角的Y坐标。
+right    number  控件边框的右下角的X坐标。
+bottom    number  控件边框的右下角的Y坐标。
+*/
 Rect Component::GetBounds()
 {
     Rect rect;
@@ -829,12 +844,12 @@ OHOS::Ace::Platform::ComponentInfo Component::GetComponentInfo()
 
 void Component::SetParentComponent(const shared_ptr<Component> parent)
 {
-    parentComponent = parent;
+    parentComponent_ = parent;
 }
 
 shared_ptr<Component> Component::GetParentComponent()
 {
-    return parentComponent;
+    return parentComponent_;
 }
 
 Point Component::GetBoundsCenter()
@@ -1081,48 +1096,57 @@ bool operator == (const On& on, const OHOS::Ace::Platform::ComponentInfo& info)
 }
 
 static void GetComponentvalue(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
-     OHOS::Ace::Platform::ComponentInfo& ret, std::vector<float>& rootrange)
+     OHOS::Ace::Platform::ComponentInfo& ret, Rect& rect)
 {
+    Rect rect1 = GetBounds(component);
     if (on == component) {
-        auto componentTop = component.top;
-        auto componentBottom = component.top + component.height;
-        ret = component;
-        if (rootrange.size() == 0) {
+        ret = component; // float数比较，取小于1个像素，为不可见
+        if (component.width < 1.0f || component.height < 1.0f) {
             HILOG_DEBUG("GetComponentvalue return invisible ");
             return;
-        } else if (rootrange.size() == VIEW_SIZE && componentTop >= rootrange[0] && componentBottom <= rootrange[1]) {
+        } else if (component.width >= 1.0f && component.height >= 1.0f) {
             HILOG_DEBUG("GetComponentvalue return visible");
             return;
         }
     }
 
     for (auto& child : component.children) {
-        GetComponentvalue(child, on, ret, rootrange);
+        GetComponentvalue(child, on, ret, rect1);
     }
 }
 
-static void GetAllComponentInfos(OHOS::Ace::Platform::ComponentInfo &componentInfo, std::vector<float> &rootrange, vector<shared_ptr<Component>>& allComponents, shared_ptr<Component> parentComponent)
+bool IsRectOverlap(Rect& rect1, Rect& rect2)
 {
-    HILOG_DEBUG("GetAllComponentInfos begin. allComponents.size()=%d",allComponents.size());
-    auto componentTop = componentInfo.top;
-    auto componentBottom = componentInfo.top + componentInfo.height;
-    auto componentLeft = componentInfo.left;
-    auto componentRight = componentInfo.left + componentInfo.width;
+    // 判断两个控件是否有交集
+    if (rect1.left >= rect2.right || rect1.right <= rect2.left ||
+        rect1.top >= rect2.bottom || rect1.bottom <= rect2.top) {
+        return false; // 没有交集
+    } else {
+        return true; // 有交集
+    }
+}
+
+static void GetAllComponentInfos(OHOS::Ace::Platform::ComponentInfo& componentInfo,
+    Rect& rect, vector<shared_ptr<Component>>& allComponents,
+    shared_ptr<Component> parentComponent)
+{
+    HILOG_DEBUG("GetAllComponentInfos begin. allComponents.size()=%d", allComponents.size());
+    Rect rect1 = GetBounds(componentInfo);
 
     auto component = make_shared<Component>();
     component->SetComponentInfo(componentInfo);
     component->SetParentComponent(parentComponent);
-    if (rootrange.size() == 0 || (componentTop >= rootrange[0] && componentBottom <= rootrange[1] 
-        && componentLeft >= rootrange[2] && componentRight <= rootrange[3])) {
+    if (IsRectOverlap(rect1, rect)) {
         allComponents.emplace_back(component);
     }
     for (auto &child : componentInfo.children) {
-        GetAllComponentInfos(child, rootrange, allComponents,component);
+        GetAllComponentInfos(child, rect1, allComponents, component);
     }
-    HILOG_DEBUG("GetAllComponentInfos end. allComponents.size()=%d",allComponents.size());
+    HILOG_DEBUG("GetAllComponentInfos end. allComponents.size()=%d", allComponents.size());
 }
 
-static vector<shared_ptr<Component>> GetComponentsInRange(const On &on, vector<shared_ptr<Component>>& allComponents)
+static vector<shared_ptr<Component>> GetComponentsInRange(const On& on,
+    vector<shared_ptr<Component>>& allComponents)
 {
     HILOG_DEBUG("GetComponentsInRange begin.");
     int firstIndex = 0;
@@ -1130,7 +1154,7 @@ static vector<shared_ptr<Component>> GetComponentsInRange(const On &on, vector<s
     if (on.isBefore.size() > 0) {
         bool gettingBefores = true;
         for (int index = 0; gettingBefores && index < allComponents.size(); index++) {
-            for (On *isBeforeOn : on.isBefore) {
+            for (On* isBeforeOn : on.isBefore) {
                 if (*isBeforeOn == allComponents[index]->GetComponentInfo()) {
                     lastIndex = index - 1;
                     gettingBefores = false;
@@ -1142,7 +1166,7 @@ static vector<shared_ptr<Component>> GetComponentsInRange(const On &on, vector<s
     if (on.isAfter.size() > 0) {
         bool gettingAfters = true;
         for (int index = allComponents.size() - 1; gettingAfters && index >= 0; index--) {
-            for (On *isAfterOn : on.isAfter) {
+            for (On* isAfterOn : on.isAfter) {
                 if (*isAfterOn == allComponents[index]->GetComponentInfo()) {
                     firstIndex = index + 1;
                     gettingAfters = false;
@@ -1152,24 +1176,24 @@ static vector<shared_ptr<Component>> GetComponentsInRange(const On &on, vector<s
         }
     }
     vector<shared_ptr<Component>> componentsInRange;
-    for(int index=firstIndex;index<=lastIndex;index++){
+    for(int index = firstIndex; index <= lastIndex; index++){
         componentsInRange.push_back(allComponents[index]);
     }
     HILOG_DEBUG("GetComponentsInRange end. Rest size of componentsInRange is = %d", componentsInRange.size());
     return componentsInRange;
 }
 
-bool IsWithinComponent(const On& on, shared_ptr<Component> &component){
-     HILOG_DEBUG("IsWithinComponent begin.");
-    for(int withinIndex = 0; withinIndex<on.within.size(); withinIndex++){
+bool IsWithinComponent(const On& on, shared_ptr<Component>& component) {
+    HILOG_DEBUG("IsWithinComponent begin.");
+    for (int withinIndex = 0; withinIndex < on.within.size(); withinIndex++) {
         shared_ptr<Component> parentComponent = component->GetParentComponent();
-        while(parentComponent!=nullptr) {
+        while (parentComponent != nullptr) {
             if(*on.within[withinIndex] == parentComponent->GetComponentInfo()) {
                 break;
             }
-            parentComponent=parentComponent->GetParentComponent();
+            parentComponent = parentComponent->GetParentComponent();
         }
-        if(parentComponent == nullptr) {
+        if (parentComponent == nullptr) {
             HILOG_DEBUG("IsWithinComponent end. Component not within specified parent component.");
             return false;
         }
@@ -1178,11 +1202,12 @@ bool IsWithinComponent(const On& on, shared_ptr<Component> &component){
     return true;
 }
 
-unique_ptr<Component> GetComponentvalue(const On& on, vector<shared_ptr<Component>> &componentsInRange)
+unique_ptr<Component> GetComponentvalue(const On& on, vector<shared_ptr<Component>>& componentsInRange)
 {    
     HILOG_DEBUG("GetComponentvalue begin.");
-    for(int index=0; index < componentsInRange.size(); index++) {
-        if (on == componentsInRange[index]->GetComponentInfo() && IsWithinComponent(on,componentsInRange[index])){
+    for (int index=0; index < componentsInRange.size(); index++) {
+        if (on == componentsInRange[index]->GetComponentInfo() &&
+            IsWithinComponent(on,componentsInRange[index])) {
             HILOG_DEBUG("Component found.");
             auto component = make_unique<Component>();
             component->SetComponentInfo(componentsInRange[index]->GetComponentInfo());
@@ -1202,14 +1227,10 @@ unique_ptr<Component> Driver::FindComponent(const On& on)
     auto uiContent = GetUIContent();
     CHECK_NULL_RETURN(uiContent, nullptr);
     uiContent->GetAllComponents(0, info);
-    std::vector<float> rootrange;
-    rootrange.push_back(info.top);
-    rootrange.push_back(info.top + info.height);
-    rootrange.push_back(info.left);
-    rootrange.push_back(info.left + info.width);
+    Rect infoRect = GetBounds(info);
     HILOG_DEBUG("GetAllComponents ok");
     vector<shared_ptr<Component>> allComponents;
-    GetAllComponentInfos(info, rootrange, allComponents, nullptr);
+    GetAllComponentInfos(info, infoRect, allComponents, nullptr);
     vector<shared_ptr<Component>> componentsInRange = GetComponentsInRange(on, allComponents);
     return GetComponentvalue(on, componentsInRange);
 }
@@ -1236,13 +1257,9 @@ vector<unique_ptr<Component>> Driver::FindComponents(const On& on)
     OHOS::Ace::Platform::ComponentInfo info;
     auto uiContent = GetUIContent();
     uiContent->GetAllComponents(0, info);
-    std::vector<float> rootrange;
-    rootrange.push_back(info.top);
-    rootrange.push_back(info.top + info.height);
-    rootrange.push_back(info.left);
-    rootrange.push_back(info.left + info.width);
+    Rect infoRect = GetBounds(info);
     vector<shared_ptr<Component>> allComponents;
-    GetAllComponentInfos(info,rootrange,allComponents,nullptr);
+    GetAllComponentInfos(info, infoRect, allComponents, nullptr);
     vector<shared_ptr<Component>> componentsInRange = GetComponentsInRange(on, allComponents);
     GetComponentvalues(on, componentsInRange, components);
     HILOG_DEBUG("Driver::FindComponents end");
@@ -1253,9 +1270,9 @@ unique_ptr<Component> Component::ScrollSearch(const On& on)
 {
     HILOG_DEBUG("Component::ScrollSearch");
     OHOS::Ace::Platform::ComponentInfo ret;
-    std::vector<float> rootrange;
+    Rect infoRect = GetBounds();
     vector<shared_ptr<Component>> allComponents;
-    GetAllComponentInfos(componentInfo_, rootrange, allComponents, nullptr);
+    GetAllComponentInfos(componentInfo_, infoRect, allComponents, nullptr);
     vector<shared_ptr<Component>> componentsInRange = GetComponentsInRange(on, allComponents);
     unique_ptr<Component> component = move(GetComponentvalue(on, componentsInRange));
     if (component == nullptr) {
@@ -1307,6 +1324,9 @@ PointerMatrix* PointerMatrix::Create(uint32_t fingers, uint32_t steps)
 
 void PointerMatrix::SetPoint(uint32_t finger, uint32_t step, Point& point)
 {
+    if (this->fingerNum_ == 0 || this->stepNum_ == 0) {
+        return;
+    }
     if (finger < this->fingerNum_) {
         if (step < this->stepNum_) {
             vector<Point>& pointVec = fingerPointMap_[finger];
