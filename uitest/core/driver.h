@@ -124,9 +124,9 @@ public:
     shared_ptr<bool> selected;
     shared_ptr<bool> checked;
     shared_ptr<bool> checkable;
-    vector<On*> isBefore;
-    vector<On*> isAfter;
-    vector<On*> within;
+    shared_ptr<On> isBefore;
+    shared_ptr<On> isAfter;
+    shared_ptr<On> within;
     MatchPattern pattern_ = MatchPattern::EQUALS;
 
     bool CompareText(const string& text) const;
@@ -134,14 +134,6 @@ public:
 };
 
 bool operator == (const On& on, const OHOS::Ace::Platform::ComponentInfo& info);
-static void GetComponentvalue(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
-    OHOS::Ace::Platform::ComponentInfo& ret, Rect& rect);
-
-static bool GetBeforeComponent(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
-    OHOS::Ace::Platform::ComponentInfo& ret);
-
-static bool GetAfterComponent(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
-    OHOS::Ace::Platform::ComponentInfo& ret);
 
 class Component {
 public:

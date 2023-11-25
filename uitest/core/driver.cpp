@@ -156,7 +156,7 @@ void Driver::TriggerCombineKeys(int key0, int key1, int key2)
 
 bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed)
 {
-    uint32_t fingers = pointers.GetFingers();
+    // uint32_t fingers = pointers.GetFingers();
     uint32_t steps = pointers.GetSteps();
     if (steps <= 1) {
         HILOG_ERROR("Driver::InjectMultiPointerAction no move.");
@@ -381,32 +381,32 @@ void Driver::CalculateDirection(const OHOS::Ace::Platform::ComponentInfo& info,
     // 滑动距离要大于1/2才能更有效的滑动屏幕，尤其在左右滑动时
     switch (direction) {
         case UiDirection::LEFT : // 往左滑
-            from.x = info.top + info.width / INDEX_SIX;
-            from.y = info.left + info.height / INDEX_TWO; // 横向居中
-            to.x = from.x - info.width * INDEX_TWO / INDEX_THREE;
-            to.y = from.y;
-            break;
-        case UiDirection::RIGHT : // 往右滑
-            from.x = info.top + info.width * INDEX_FIVE / INDEX_SIX;
-            from.y = info.left + info.height / INDEX_TWO; // 横向居中
+            from.x = info.left + info.width * INDEX_FIVE / INDEX_SIX;
+            from.y = info.top + info.height / INDEX_TWO; // 横向居中
             to.x = from.x + info.width * INDEX_TWO / INDEX_THREE;
             to.y = from.y;
             break;
-        case UiDirection::UP : // 往上滑
-            from.x = info.top + info.width / INDEX_TWO; // 纵向居中
-            from.y = info.left + info.height / INDEX_SIX;
-            to.x = from.x;
-            to.y = from.y - info.height * INDEX_TWO / INDEX_THREE;
+        case UiDirection::RIGHT : // 往右滑
+            from.x = info.left + info.width / INDEX_SIX;
+            from.y = info.top + info.height / INDEX_TWO; // 横向居中
+            to.x = from.x - info.width * INDEX_TWO / INDEX_THREE;
+            to.y = from.y;
             break;
-        case UiDirection::DOWN : // 往下滑
-            from.x = info.top + info.width / INDEX_TWO; // 纵向居中
-            from.y = info.left + info.height * INDEX_FIVE / INDEX_SIX;
+        case UiDirection::UP : // 往上滑
+            from.x = info.left + info.width / INDEX_TWO; // 纵向居中
+            from.y = info.top + info.height * INDEX_FIVE / INDEX_SIX;
             to.x = from.x;
             to.y = from.y + info.height * INDEX_TWO / INDEX_THREE;
             break;
+        case UiDirection::DOWN : // 往下滑
+            from.x = info.left + info.width / INDEX_TWO; // 纵向居中
+            from.y = info.top + info.height / INDEX_SIX;
+            to.x = from.x;
+            to.y = from.y - info.height * INDEX_TWO / INDEX_THREE;
+            break;
         default:
-            from.x = info.top + info.width / INDEX_SIX;
-            from.y = info.left + info.height / INDEX_TWO; // 横向居中
+            from.x = info.left + info.width / INDEX_SIX;
+            from.y = info.top + info.height / INDEX_TWO; // 横向居中
             to.x = from.x - info.width * INDEX_TWO / INDEX_THREE;
             to.y = from.y;
     }
@@ -957,55 +957,10 @@ On* On::Checked(bool checked)
     return this;
 }
 
-static bool GetBeforeComponent(OHOS::Ace::Platform::ComponentInfo& component,
-    const On& on, OHOS::Ace::Platform::ComponentInfo& ret)
-{
-    if (BEFORE_FLAG) {
-        ret = component;
-        return true;
-    }
-
-    if (on == component) {
-        BEFORE_FLAG =  true;
-    }
-
-    for (auto iter = component.children.rbegin(); iter != component.children.rend(); iter++) {
-        if (GetBeforeComponent(*iter, on, ret)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-static bool GetAfterComponent(OHOS::Ace::Platform::ComponentInfo& component,
-    const On& on, OHOS::Ace::Platform::ComponentInfo& ret)
-{
-    if (AFTER_FLAG) {
-        ret = component;
-        return true;
-    }
-
-    if (on == component) {
-        AFTER_FLAG =  true;
-    }
-
-    for (auto& child : component.children) {        
-        if (GetAfterComponent(child, on, ret)){
-            return true;
-        }
-    }
-    return false;
-}
-
 On* On::IsBefore(On* on)
 {
     HILOG_INFO("Driver::IsBefore")
-    if (!on->isBefore.empty() || !on->isAfter.empty() || !on->within.empty()) {
-        HILOG_ERROR("Nesting ON usage is not supported");
-        this->isEnter = false;
-        return nullptr;
-    }
-    this->isBefore.emplace_back(on);
+    this->isBefore.reset(on);
     this->isEnter = true;
     return this;
 }
@@ -1013,12 +968,7 @@ On* On::IsBefore(On* on)
 On* On::IsAfter(On* on)
 {
     HILOG_INFO("Driver::IsAfter")
-    if (!on->isBefore.empty() || !on->isAfter.empty() || !on->within.empty()) {
-        HILOG_ERROR("Nesting ON usage is not supported");
-        this->isEnter = false;
-        return nullptr;
-    }
-    this->isAfter.emplace_back(on);
+    this->isAfter.reset(on);
     this->isEnter = true;
     return this;
 }
@@ -1026,12 +976,7 @@ On* On::IsAfter(On* on)
 On* On::Within(On* on)
 {
     HILOG_INFO("Driver::Within")
-    if (!on->isBefore.empty() || !on->isAfter.empty() || !on->within.empty()) {
-        HILOG_ERROR("Nesting ON usage is not supported");
-        this->isEnter = false;
-        return nullptr;
-    }
-    this->within.emplace_back(on);
+    this->within.reset(on);
     this->isEnter = true;
     return this;
 }
@@ -1095,26 +1040,6 @@ bool operator == (const On& on, const OHOS::Ace::Platform::ComponentInfo& info)
     return res;
 }
 
-static void GetComponentvalue(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
-     OHOS::Ace::Platform::ComponentInfo& ret, Rect& rect)
-{
-    Rect rect1 = GetBounds(component);
-    if (on == component) {
-        ret = component; // float数比较，取小于1个像素，为不可见
-        if (component.width < 1.0f || component.height < 1.0f) {
-            HILOG_DEBUG("GetComponentvalue return invisible ");
-            return;
-        } else if (component.width >= 1.0f && component.height >= 1.0f) {
-            HILOG_DEBUG("GetComponentvalue return visible");
-            return;
-        }
-    }
-
-    for (auto& child : component.children) {
-        GetComponentvalue(child, on, ret, rect1);
-    }
-}
-
 bool IsRectOverlap(Rect& rect1, Rect& rect2)
 {
     // 判断两个控件是否有交集
@@ -1151,27 +1076,19 @@ static vector<shared_ptr<Component>> GetComponentsInRange(const On& on,
     HILOG_DEBUG("GetComponentsInRange begin.");
     int firstIndex = 0;
     int lastIndex = allComponents.size() - 1;
-    if (on.isBefore.size() > 0) {
-        bool gettingBefores = true;
-        for (int index = 0; gettingBefores && index < allComponents.size(); index++) {
-            for (On* isBeforeOn : on.isBefore) {
-                if (*isBeforeOn == allComponents[index]->GetComponentInfo()) {
-                    lastIndex = index - 1;
-                    gettingBefores = false;
-                    break;
-                }
+    if (on.isBefore) {
+        for (int index = 0; index < allComponents.size(); index++) {
+            if (*on.isBefore == allComponents[index]->GetComponentInfo()) {
+                lastIndex = index - 1;
+                break;
             }
         }
     }
-    if (on.isAfter.size() > 0) {
-        bool gettingAfters = true;
-        for (int index = allComponents.size() - 1; gettingAfters && index >= 0; index--) {
-            for (On* isAfterOn : on.isAfter) {
-                if (*isAfterOn == allComponents[index]->GetComponentInfo()) {
-                    firstIndex = index + 1;
-                    gettingAfters = false;
-                    break;
-                }
+    if (on.isAfter) {
+        for (int index = allComponents.size() - 1; index >= 0; index--) {
+            if (*on.isAfter == allComponents[index]->GetComponentInfo()) {
+                firstIndex = index + 1;
+                break;
             }
         }
     }
@@ -1179,39 +1096,36 @@ static vector<shared_ptr<Component>> GetComponentsInRange(const On& on,
     for(int index = firstIndex; index <= lastIndex; index++){
         componentsInRange.push_back(allComponents[index]);
     }
-    HILOG_DEBUG("GetComponentsInRange end. Rest size of componentsInRange is = %d", componentsInRange.size());
+    HILOG_DEBUG("GetComponentsInRange end. Rest size of componentsInRange is = %d",
+        componentsInRange.size());
     return componentsInRange;
 }
 
-bool IsWithinComponent(const On& on, shared_ptr<Component>& component) {
+bool IsWithinComponent(const On& on, shared_ptr<Component>& component)
+{
     HILOG_DEBUG("IsWithinComponent begin.");
-    for (int withinIndex = 0; withinIndex < on.within.size(); withinIndex++) {
-        shared_ptr<Component> parentComponent = component->GetParentComponent();
-        while (parentComponent != nullptr) {
-            if(*on.within[withinIndex] == parentComponent->GetComponentInfo()) {
-                break;
-            }
-            parentComponent = parentComponent->GetParentComponent();
-        }
-        if (parentComponent == nullptr) {
-            HILOG_DEBUG("IsWithinComponent end. Component not within specified parent component.");
-            return false;
+    shared_ptr<Component> parentComponent = component->GetParentComponent();
+    if (parentComponent != nullptr && on.within != nullptr) {
+        if(*on.within == parentComponent->GetComponentInfo()) {
+            return true;
         }
     }
     HILOG_DEBUG("IsWithinComponent end.");
-    return true;
+    return false;
 }
 
-unique_ptr<Component> GetComponentvalue(const On& on, vector<shared_ptr<Component>>& componentsInRange)
+unique_ptr<Component> GetComponentvalue(const On& on,
+    vector<shared_ptr<Component>>& componentsInRange)
 {    
     HILOG_DEBUG("GetComponentvalue begin.");
     for (int index=0; index < componentsInRange.size(); index++) {
-        if (on == componentsInRange[index]->GetComponentInfo() &&
-            IsWithinComponent(on,componentsInRange[index])) {
+        if (on == componentsInRange[index]->GetComponentInfo()) {
             HILOG_DEBUG("Component found.");
             auto component = make_unique<Component>();
             component->SetComponentInfo(componentsInRange[index]->GetComponentInfo());
-            component->SetParentComponent(componentsInRange[index]->GetParentComponent());
+            if (IsWithinComponent(on,componentsInRange[index])) {
+                component->SetParentComponent(componentsInRange[index]->GetParentComponent());
+            }
             return component;
         }
     }
@@ -1235,15 +1149,18 @@ unique_ptr<Component> Driver::FindComponent(const On& on)
     return GetComponentvalue(on, componentsInRange);
 }
 
-void GetComponentvalues(const On& on, vector<shared_ptr<Component>> &componentsInRange, vector<unique_ptr<Component>>& components)
+void GetComponentvalues(const On& on, vector<shared_ptr<Component>> &componentsInRange,
+    vector<unique_ptr<Component>>& components)
 {  
     HILOG_DEBUG("GetComponentvalues begin.");
     for(int index = 0; index < componentsInRange.size(); index++){
-        if (on == componentsInRange[index]->GetComponentInfo() && IsWithinComponent(on, componentsInRange[index])){
+        if (on == componentsInRange[index]->GetComponentInfo()) {
             HILOG_DEBUG("Component found.");
             auto component = make_unique<Component>();
             component->SetComponentInfo(componentsInRange[index]->GetComponentInfo());
-            component->SetParentComponent(componentsInRange[index]->GetParentComponent());
+            if (IsWithinComponent(on, componentsInRange[index])) {
+                component->SetParentComponent(componentsInRange[index]->GetParentComponent());
+            }
             components.push_back(move(component));
         }
     }
