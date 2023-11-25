@@ -1063,15 +1063,11 @@ napi_value ComponentNExporter::PinchOut(napi_env env, napi_callback_info info)
         return nullptr;
     }
 
-    float scale_ = 0.0f;
-    if (funcArg.GetArgc() == NARG_CNT::ONE) {
-        auto [succ, scale] = NVal(env, funcArg[NARG_POS::FIRST]).ToDouble();
-        if (!succ) {
-            HILOG_ERROR("Get PinchOut parameter failed!");
-            NError(E_PARAMS).ThrowErr(env);
-            return nullptr;
-        }
-        scale_ = scale;
+    auto [succ, scale] = NVal(env, funcArg[NARG_POS::FIRST]).ToDouble();
+    if (!succ) {
+        HILOG_ERROR("Get PinchOut parameter failed!");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
     }
 
     auto component = NClass::GetEntityOf<Component>(env, funcArg.GetThisVar());
@@ -1080,7 +1076,7 @@ napi_value ComponentNExporter::PinchOut(napi_env env, napi_callback_info info)
         NError(E_DESTROYED).ThrowErr(env);
         return nullptr;
     }
-
+    float scale_ = scale;
     auto cbExec = [component, scale_]() -> NError {
         component->PinchOut(scale_);
         return NError(ERRNO_NOERR);
@@ -1108,15 +1104,11 @@ napi_value ComponentNExporter::PinchIn(napi_env env, napi_callback_info info)
         return nullptr;
     }
 
-    float scale_ = 0.0f;
-    if (funcArg.GetArgc() == NARG_CNT::ONE) {
-        auto [succ, scale] = NVal(env, funcArg[NARG_POS::FIRST]).ToDouble();
-        if (!succ) {
-            HILOG_ERROR("Get PinchIn parameter failed!");
-            NError(E_PARAMS).ThrowErr(env);
-            return nullptr;
-        }
-        scale_ = scale;
+    auto [succ, scale] = NVal(env, funcArg[NARG_POS::FIRST]).ToDouble();
+    if (!succ) {
+        HILOG_ERROR("Get PinchIn parameter failed!");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
     }
 
     auto component = NClass::GetEntityOf<Component>(env, funcArg.GetThisVar());
@@ -1125,7 +1117,7 @@ napi_value ComponentNExporter::PinchIn(napi_env env, napi_callback_info info)
         NError(E_DESTROYED).ThrowErr(env);
         return nullptr;
     }
-
+    float scale_ = scale;
     auto cbExec = [component, scale_]() -> NError {
         component->PinchIn(scale_);
         return NError(ERRNO_NOERR);
