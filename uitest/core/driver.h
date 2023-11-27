@@ -111,7 +111,7 @@ public:
     On* Checked(bool checked);
     On* IsBefore(On* on);
     On* IsAfter(On* on);
-    On* Within(On* on);
+    On* WithIn(On* on);
 
     shared_ptr<string> id;
     shared_ptr<string> text;
@@ -124,9 +124,9 @@ public:
     shared_ptr<bool> selected;
     shared_ptr<bool> checked;
     shared_ptr<bool> checkable;
-    shared_ptr<On> isBefore;
-    shared_ptr<On> isAfter;
-    shared_ptr<On> within;
+    weak_ptr<On> isBefore;
+    weak_ptr<On> isAfter;
+    weak_ptr<On> withIn;
     MatchPattern pattern_ = MatchPattern::EQUALS;
 
     bool CompareText(const string& text) const;

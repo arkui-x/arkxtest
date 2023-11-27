@@ -51,7 +51,7 @@ public:
     static napi_value Checkable(napi_env env, napi_callback_info info);
     static napi_value IsBefore(napi_env env, napi_callback_info info);
     static napi_value IsAfter(napi_env env, napi_callback_info info);
-    static napi_value Within(napi_env env, napi_callback_info info);
+    static napi_value WithIn(napi_env env, napi_callback_info info);
 
     static constexpr const char* ON_CLASS_NAME_ = "ON";
     static constexpr const char* ON_CLASS_NAME = "On";

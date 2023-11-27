@@ -960,7 +960,7 @@ On* On::Checked(bool checked)
 On* On::IsBefore(On* on)
 {
     HILOG_INFO("Driver::IsBefore")
-    this->isBefore.reset(on);
+    this->isBefore = make_shared<On>(*on);
     this->isEnter = true;
     return this;
 }
@@ -968,15 +968,15 @@ On* On::IsBefore(On* on)
 On* On::IsAfter(On* on)
 {
     HILOG_INFO("Driver::IsAfter")
-    this->isAfter.reset(on);
+    this->isAfter = make_shared<On>(*on);
     this->isEnter = true;
     return this;
 }
 
-On* On::Within(On* on)
+On* On::WithIn(On* on)
 {
-    HILOG_INFO("Driver::Within")
-    this->within.reset(on);
+    HILOG_INFO("Driver::WithIn")
+    this->withIn = make_shared<On>(*on);
     this->isEnter = true;
     return this;
 }
@@ -1076,17 +1076,19 @@ static vector<shared_ptr<Component>> GetComponentsInRange(const On& on,
     HILOG_DEBUG("GetComponentsInRange begin.");
     int firstIndex = 0;
     int lastIndex = allComponents.size() - 1;
-    if (on.isBefore) {
+    auto sptIsBf = on.isBefore.lock();
+    if (sptIsBf) {
         for (int index = 0; index < allComponents.size(); index++) {
-            if (*on.isBefore == allComponents[index]->GetComponentInfo()) {
+            if (*sptIsBf == allComponents[index]->GetComponentInfo()) {
                 lastIndex = index - 1;
                 break;
             }
         }
     }
-    if (on.isAfter) {
+    auto sptIsAf = on.isAfter.lock();
+    if (sptIsAf) {
         for (int index = allComponents.size() - 1; index >= 0; index--) {
-            if (*on.isAfter == allComponents[index]->GetComponentInfo()) {
+            if (*sptIsAf == allComponents[index]->GetComponentInfo()) {
                 firstIndex = index + 1;
                 break;
             }
@@ -1101,16 +1103,17 @@ static vector<shared_ptr<Component>> GetComponentsInRange(const On& on,
     return componentsInRange;
 }
 
-bool IsWithinComponent(const On& on, shared_ptr<Component>& component)
+bool IsWithInComponent(const On& on, shared_ptr<Component>& component)
 {
-    HILOG_DEBUG("IsWithinComponent begin.");
+    HILOG_DEBUG("IsWithInComponent begin.");
     shared_ptr<Component> parentComponent = component->GetParentComponent();
-    if (parentComponent != nullptr && on.within != nullptr) {
-        if(*on.within == parentComponent->GetComponentInfo()) {
+    auto sptWithIn = on.withIn.lock();
+    if (parentComponent != nullptr && sptWithIn != nullptr) {
+        if(*sptWithIn == parentComponent->GetComponentInfo()) {
             return true;
         }
     }
-    HILOG_DEBUG("IsWithinComponent end.");
+    HILOG_DEBUG("IsWithInComponent end.");
     return false;
 }
 
@@ -1123,7 +1126,7 @@ unique_ptr<Component> GetComponentvalue(const On& on,
             HILOG_DEBUG("Component found.");
             auto component = make_unique<Component>();
             component->SetComponentInfo(componentsInRange[index]->GetComponentInfo());
-            if (IsWithinComponent(on,componentsInRange[index])) {
+            if (IsWithInComponent(on,componentsInRange[index])) {
                 component->SetParentComponent(componentsInRange[index]->GetParentComponent());
             }
             return component;
@@ -1158,7 +1161,7 @@ void GetComponentvalues(const On& on, vector<shared_ptr<Component>> &componentsI
             HILOG_DEBUG("Component found.");
             auto component = make_unique<Component>();
             component->SetComponentInfo(componentsInRange[index]->GetComponentInfo());
-            if (IsWithinComponent(on, componentsInRange[index])) {
+            if (IsWithInComponent(on, componentsInRange[index])) {
                 component->SetParentComponent(componentsInRange[index]->GetParentComponent());
             }
             components.push_back(move(component));

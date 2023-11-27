@@ -264,7 +264,7 @@ static napi_value RelativeOnTemplate(napi_env env, napi_callback_info info, int3
     HILOG_DEBUG("Uitest:: RelativeOnTemplate begin.");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ONE)) {
-        HILOG_ERROR("Within Number of arguments unmatched");
+        HILOG_ERROR("WithIn Number of arguments unmatched");
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
     }
@@ -296,7 +296,7 @@ static napi_value RelativeOnTemplate(napi_env env, napi_callback_info info, int3
         }
         break;
     case CommonType::WITHIN:
-        if (!on->Within(relativeOn)) {
+        if (!on->WithIn(relativeOn)) {
             HILOG_ERROR("Cannot put attributions to on");
             return nullptr;
         }
@@ -319,7 +319,7 @@ napi_value OnNExporter::IsAfter(napi_env env, napi_callback_info info)
     return RelativeOnTemplate(env, info, CommonType::ISAFTER);
 }
 
-napi_value OnNExporter::Within(napi_env env, napi_callback_info info)
+napi_value OnNExporter::WithIn(napi_env env, napi_callback_info info)
 {
     return RelativeOnTemplate(env, info, CommonType::WITHIN);
 }
@@ -361,7 +361,7 @@ bool OnNExporter::Export()
         NVal::DeclareNapiFunction(OnNExporter::FUNCTION_CHECKABLE, OnNExporter::Checkable),
         NVal::DeclareNapiFunction(OnNExporter::FUNCTION_ISBEFORE, OnNExporter::IsBefore),
         NVal::DeclareNapiFunction(OnNExporter::FUNCTION_ISAFTER, OnNExporter::IsAfter),
-        NVal::DeclareNapiFunction(OnNExporter::FUNCTION_WITHIN, OnNExporter::Within),
+        NVal::DeclareNapiFunction(OnNExporter::FUNCTION_WITHIN, OnNExporter::WithIn),
     };
     auto [succ, classValue] = NClass::DefineClass(exports_.env_, OnNExporter::ON_CLASS_NAME, OnInitializer,
         std::move(props));
