@@ -2025,6 +2025,13 @@ napi_value PointerMatrixNExporter::Create(napi_env env, napi_callback_info info)
         return nullptr;
     }
 
+    if (fingers <= 0 || steps <= 0) {
+        HILOG_ERROR("PointerMatrixNExporter::Create Invalid value. fingers[%d] steps[%d]",
+            fingers, steps);
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
+    }
+
     auto pMatrix = NClass::GetEntityOf<PointerMatrix>(env, funcArg.GetThisVar());
     if (pMatrix == nullptr) {
         HILOG_ERROR("Cannot get entity of pMatrix");

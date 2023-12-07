@@ -137,7 +137,7 @@ void Driver::TriggerKey(int keyCode)
 void Driver::TriggerCombineKeys(int key0, int key1, int key2)
 {
     auto uiContent = GetUIContent();
-    if (key0 == -1 && key1 == -1) {
+    if (key0 == -1 || key1 == -1) {
         return;
     }
     HILOG_DEBUG("Driver::TriggerCombineKeys: %{public}d %{public}d %{public}d", key0, key1, key2);
