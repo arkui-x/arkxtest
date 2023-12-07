@@ -374,41 +374,43 @@ void Driver::Fling(const Point& from, const Point& to, int stepLen, uint32_t spe
     CHECK_NULL_VOID(uiContent);
     uiContent->ProcessBasicEvent(flingEvents);
 }
-// 默认左上角原点
+
+/* 默认左上角原点
+componentInfo:
+left  x  number    矩形区域的左边界，单位为px，该参数为整数。
+top   y  number    矩形区域的上边界，单位为px，该参数应为整数。
+width   number    矩形区域的宽度，单位为px，该参数应为整数。
+height  number    矩形区域的高度，单位为px，该参数应为整数。
+*/
 void Driver::CalculateDirection(const OHOS::Ace::Platform::ComponentInfo& info,
     const UiDirection& direction, Point& from, Point& to)
 {
     // 滑动距离要大于1/2才能更有效的滑动屏幕，尤其在左右滑动时
     switch (direction) {
-        case UiDirection::LEFT : // 往左滑
+        case UiDirection::LEFT : // 从左滑到右
+            from.x = info.left + info.width / INDEX_SIX;
+            from.y = info.top + info.height / INDEX_TWO; // 横向居中
+            to.x = from.x - info.width * INDEX_TWO / INDEX_THREE;
+            to.y = from.y;
+            break;
+        case UiDirection::RIGHT : // 从右滑到左
             from.x = info.left + info.width * INDEX_FIVE / INDEX_SIX;
             from.y = info.top + info.height / INDEX_TWO; // 横向居中
             to.x = from.x + info.width * INDEX_TWO / INDEX_THREE;
             to.y = from.y;
             break;
-        case UiDirection::RIGHT : // 往右滑
-            from.x = info.left + info.width / INDEX_SIX;
-            from.y = info.top + info.height / INDEX_TWO; // 横向居中
-            to.x = from.x - info.width * INDEX_TWO / INDEX_THREE;
-            to.y = from.y;
-            break;
-        case UiDirection::UP : // 往上滑
-            from.x = info.left + info.width / INDEX_TWO; // 纵向居中
-            from.y = info.top + info.height * INDEX_FIVE / INDEX_SIX;
-            to.x = from.x;
-            to.y = from.y + info.height * INDEX_TWO / INDEX_THREE;
-            break;
-        case UiDirection::DOWN : // 往下滑
+        case UiDirection::UP : // 从上滑到下
             from.x = info.left + info.width / INDEX_TWO; // 纵向居中
             from.y = info.top + info.height / INDEX_SIX;
             to.x = from.x;
             to.y = from.y - info.height * INDEX_TWO / INDEX_THREE;
             break;
+        case UiDirection::DOWN : // 从下滑到上
         default:
-            from.x = info.left + info.width / INDEX_SIX;
-            from.y = info.top + info.height / INDEX_TWO; // 横向居中
-            to.x = from.x - info.width * INDEX_TWO / INDEX_THREE;
-            to.y = from.y;
+            from.x = info.left + info.width / INDEX_TWO; // 纵向居中
+            from.y = info.top + info.height * INDEX_FIVE / INDEX_SIX;
+            to.x = from.x;
+            to.y = from.y + info.height * INDEX_TWO / INDEX_THREE;
     }
 }
 
@@ -566,8 +568,7 @@ void Component::InputText(const string& text)
     auto uiContent = GetUIContent();
     CHECK_NULL_VOID(uiContent);
 
-    uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_MOVE_END), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
-    uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_MOVE_END), static_cast<int32_t>(Ace::KeyAction::UP), 0);
+    ClearText();
     Driver driver;
     for (uint32_t i = 0; i < text.length(); i++) {
         int32_t keycode = Findkeycode(text[i]);
