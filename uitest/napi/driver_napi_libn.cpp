@@ -2025,9 +2025,15 @@ napi_value PointerMatrixNExporter::Create(napi_env env, napi_callback_info info)
         return nullptr;
     }
 
-    if (fingers <= 0 || steps <= 0) {
-        HILOG_ERROR("PointerMatrixNExporter::Create Invalid value. fingers[%d] steps[%d]",
-            fingers, steps);
+    // fingers  number  是  多指操作中注入的手指数，取值范围：[1,10]。
+    // steps    number  是  每根手指操作的步骤数，取值范围：[1,1000]。
+    if (fingers < 1 || fingers > 10) {
+        HILOG_ERROR("PointerMatrixNExporter::Create Invalid value. fingers[%d]", fingers);
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
+    }
+    if (steps < 1 || steps > 1000) {
+        HILOG_ERROR("PointerMatrixNExporter::Create Invalid value. steps[%d]", steps);
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
     }

@@ -17,6 +17,7 @@
 
 #include <future>
 #include <vector>
+#include <map>
 #include <math.h>
 #include "ability_delegator/ability_delegator_registry.h"
 #include "accessibility_node.h"
@@ -43,10 +44,61 @@ constexpr size_t INDEX_SIX = 6;
 static bool BEFORE_FLAG = false;
 static bool AFTER_FLAG = false;
 
+/* Ace::KeyCode支持的特殊符号表如下
+来源api\@ohos.multimodalInput.keyCode.d.ts
+Ace::KeyCode            KeyCode   符号      ASCII码
+KEY_STAR                2010  按键’*’  42
+KEY_POUND               2011  按键’#’  35
+KEY_COMMA               2043  按键’,’  44
+KEY_PERIOD              2044  按键’.’  46
+KEY_GRAVE               2056  按键’`’  96
+KEY_MINUS               2057  按键’-’  45
+KEY_EQUALS              2058  按键’=’  61
+KEY_LEFT_BRACKET        2059  按键’[’  91
+KEY_RIGHT_BRACKET       2060  按键’]’  93
+KEY_BACKSLASH           2061  按键’\’  92
+KEY_SEMICOLON           2062  按键’;’  59
+KEY_APOSTROPHE          2063  按键’‘’ (单引号)  39
+KEY_SLASH               2064  按键’/’  47
+KEY_AT                  2065  按键’@’  64
+KEY_PLUS                2066  按键’+’  43
+KEY_NUMPAD_DIVIDE       2113  小键盘按键’/’  47
+KEY_NUMPAD_MULTIPLY     2114  小键盘按键’*’  42
+KEY_NUMPAD_SUBTRACT     2115  小键盘按键’-’  45
+KEY_NUMPAD_ADD          2116  小键盘按键’+’  43
+KEY_NUMPAD_DOT          2117  小键盘按键’.’  46
+KEY_NUMPAD_COMMA        2118  小键盘按键’,’  44
+KEY_NUMPAD_EQUALS       2120  小键盘按键’=’  61
+KEY_NUMPAD_LEFT_PAREN   2121  小键盘按键’(’  40
+KEY_NUMPAD_RIGHT_PAREN  2122  小键盘按键’)’  41
+KEY_QUESTION            2834  疑问按键’?’    63
+*/
+static map<int, int> KEY_CODE_MAP = {
+    {42, 2010}, // {42, 2114}, 大小键盘重复键
+    {35, 2011},
+    {44, 2043}, // {44, 2118},
+    {46, 2044}, // {46, 2117},
+    {96, 2056},
+    {45, 2057}, // {45, 2115},
+    {61, 2058}, // {61, 2120},
+    {91, 2059},
+    {93, 2060},
+    {92, 2061},
+    {59, 2062},
+    {39, 2063},
+    {47, 2064}, // {47, 2113},
+    {64, 2165},
+    {43, 2066}, // {43, 2116},
+    {40, 2121},
+    {41, 2122},
+    {63, 2834},
+};
+
 int32_t Findkeycode(const char text)
 {
-    if(isupper(text)) {
-        return (text - UPPER_A + static_cast<int32_t>(Ace::KeyCode::KEY_A));
+    auto iter = KEY_CODE_MAP.find(static_cast<int32_t>(text));
+    if (iter != KEY_CODE_MAP.end()) {
+        return iter->second;
     }
 
     if(islower(text)) {
@@ -57,6 +109,9 @@ int32_t Findkeycode(const char text)
         return (text - DEF_NUMBER + static_cast<int32_t>(Ace::KeyCode::KEY_0));
     }
 
+    if (isspace(text)) { // 空格
+        return static_cast<int32_t>(Ace::KeyCode::KEY_SPACE);
+    }
     HILOG_DEBUG("Please enter lowercase letters and numbers");
     return -1;
 }
@@ -406,6 +461,11 @@ void Driver::CalculateDirection(const OHOS::Ace::Platform::ComponentInfo& info,
             to.y = from.y - info.height * INDEX_TWO / INDEX_THREE;
             break;
         case UiDirection::DOWN : // 从下滑到上
+            from.x = info.left + info.width / INDEX_TWO; // 纵向居中
+            from.y = info.top + info.height * INDEX_FIVE / INDEX_SIX;
+            to.x = from.x;
+            to.y = from.y + info.height * INDEX_TWO / INDEX_THREE;
+            break;
         default:
             from.x = info.left + info.width / INDEX_TWO; // 纵向居中
             from.y = info.top + info.height * INDEX_FIVE / INDEX_SIX;
@@ -565,13 +625,23 @@ unique_ptr<bool> Component::IsCheckable()
 void Component::InputText(const string& text)
 {
     HILOG_DEBUG("Component::InputText");
+    ClearText();
     auto uiContent = GetUIContent();
     CHECK_NULL_VOID(uiContent);
 
-    ClearText();
     Driver driver;
+    componentInfo_.text = text;
     for (uint32_t i = 0; i < text.length(); i++) {
-        int32_t keycode = Findkeycode(text[i]);
+        int32_t keycode = -1;
+        if(isupper(text[i])) {
+            keycode = text[i] - UPPER_A + static_cast<int32_t>(Ace::KeyCode::KEY_A);
+            uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_SHIFT_LEFT), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+            uiContent->ProcessKeyEvent(static_cast<int32_t>(keycode), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+            uiContent->ProcessKeyEvent(static_cast<int32_t>(keycode), static_cast<int32_t>(Ace::KeyAction::UP), 0);
+            uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_SHIFT_LEFT), static_cast<int32_t>(Ace::KeyAction::UP), 0);
+            continue;
+        }
+        keycode = Findkeycode(text[i]);
         if (keycode == -1) {
             continue;
         }
@@ -581,6 +651,7 @@ void Component::InputText(const string& text)
         uiContent->ProcessKeyEvent(static_cast<int32_t>(keycode), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
         uiContent->ProcessKeyEvent(static_cast<int32_t>(keycode), static_cast<int32_t>(Ace::KeyAction::UP), 0);
     }
+    driver.DelayMs(DELAY_TIME);
 }
 
 void Component::ClearText()
