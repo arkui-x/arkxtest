@@ -44,76 +44,34 @@ constexpr size_t INDEX_SIX = 6;
 static bool BEFORE_FLAG = false;
 static bool AFTER_FLAG = false;
 
-/* Ace::KeyCode支持的特殊符号表如下
-来源api\@ohos.multimodalInput.keyCode.d.ts
-Ace::KeyCode            KeyCode   符号      ASCII码
-KEY_STAR                2010  按键’*’  42
-KEY_POUND               2011  按键’#’  35
-KEY_COMMA               2043  按键’,’  44
-KEY_PERIOD              2044  按键’.’  46
-KEY_GRAVE               2056  按键’`’  96
-KEY_MINUS               2057  按键’-’  45
-KEY_EQUALS              2058  按键’=’  61
-KEY_LEFT_BRACKET        2059  按键’[’  91
-KEY_RIGHT_BRACKET       2060  按键’]’  93
-KEY_BACKSLASH           2061  按键’\’  92
-KEY_SEMICOLON           2062  按键’;’  59
-KEY_APOSTROPHE          2063  按键’‘’ (单引号)  39
-KEY_SLASH               2064  按键’/’  47
-KEY_AT                  2065  按键’@’  64
-KEY_PLUS                2066  按键’+’  43
-KEY_NUMPAD_DIVIDE       2113  小键盘按键’/’  47
-KEY_NUMPAD_MULTIPLY     2114  小键盘按键’*’  42
-KEY_NUMPAD_SUBTRACT     2115  小键盘按键’-’  45
-KEY_NUMPAD_ADD          2116  小键盘按键’+’  43
-KEY_NUMPAD_DOT          2117  小键盘按键’.’  46
-KEY_NUMPAD_COMMA        2118  小键盘按键’,’  44
-KEY_NUMPAD_EQUALS       2120  小键盘按键’=’  61
-KEY_NUMPAD_LEFT_PAREN   2121  小键盘按键’(’  40
-KEY_NUMPAD_RIGHT_PAREN  2122  小键盘按键’)’  41
-KEY_QUESTION            2834  疑问按键’?’    63
-*/
-static map<int, int> KEY_CODE_MAP = {
-    {42, 2010}, // {42, 2114}, 大小键盘重复键
-    {35, 2011},
-    {44, 2043}, // {44, 2118},
-    {46, 2044}, // {46, 2117},
-    {96, 2056},
-    {45, 2057}, // {45, 2115},
-    {61, 2058}, // {61, 2120},
-    {91, 2059},
-    {93, 2060},
-    {92, 2061},
-    {59, 2062},
-    {39, 2063},
-    {47, 2064}, // {47, 2113},
-    {64, 2165},
-    {43, 2066}, // {43, 2116},
-    {40, 2121},
-    {41, 2122},
-    {63, 2834},
-};
-
-int32_t Findkeycode(const char text)
+int32_t Findkeycode(const char ch)
 {
-    auto iter = KEY_CODE_MAP.find(static_cast<int32_t>(text));
-    if (iter != KEY_CODE_MAP.end()) {
-        return iter->second;
+    if(islower(ch)) {
+        return (static_cast<int32_t>(ch - LOWER_A) + static_cast<int32_t>(Ace::KeyCode::KEY_A));
     }
 
-    if(islower(text)) {
-        return (text - LOWER_A + static_cast<int32_t>(Ace::KeyCode::KEY_A));
+    if (isdigit(ch)) {
+        return (static_cast<int32_t>(ch - DEF_NUMBER) + static_cast<int32_t>(Ace::KeyCode::KEY_0));
     }
 
-    if (isdigit(text)) {
-        return (text - DEF_NUMBER + static_cast<int32_t>(Ace::KeyCode::KEY_0));
-    }
-
-    if (isspace(text)) { // 空格
+    if (isspace(ch)) { // 空格
         return static_cast<int32_t>(Ace::KeyCode::KEY_SPACE);
     }
-    HILOG_DEBUG("Please enter lowercase letters and numbers");
+    HILOG_DEBUG("Please enter lowercase letters and numbers or space.");
     return -1;
+}
+
+bool TextToKeyCodeCheck(string text)
+{
+    if (!text.empty()) {
+        vector<char> chars(text.begin(), text.end()); // decompose to sing-char input sequence
+        for (auto ch : chars) {
+            if (Findkeycode(ch) == -1) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 int64_t getCurrentTimeMillis()
@@ -184,9 +142,10 @@ void Driver::TriggerKey(int keyCode)
         return;
     }
     HILOG_DEBUG("Driver::TriggerKey: %{public}d", keyCode);
-    uiContent->ProcessKeyEvent(static_cast<int32_t>(keyCode), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+    UiOpArgs options;
+    uiContent->ProcessKeyEvent(static_cast<int32_t>(keyCode), static_cast<int32_t>(Ace::KeyAction::DOWN),
+        options.clickHoldMs_);
     uiContent->ProcessKeyEvent(static_cast<int32_t>(keyCode), static_cast<int32_t>(Ace::KeyAction::UP), 0);
-    DelayMs(DELAY_TIME);
 }
 
 void Driver::TriggerCombineKeys(int key0, int key1, int key2)
@@ -196,10 +155,13 @@ void Driver::TriggerCombineKeys(int key0, int key1, int key2)
         return;
     }
     HILOG_DEBUG("Driver::TriggerCombineKeys: %{public}d %{public}d %{public}d", key0, key1, key2);
+    UiOpArgs options;
     uiContent->ProcessKeyEvent(static_cast<int32_t>(key0), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
-    uiContent->ProcessKeyEvent(static_cast<int32_t>(key1), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+    uiContent->ProcessKeyEvent(static_cast<int32_t>(key1), static_cast<int32_t>(Ace::KeyAction::DOWN),
+        options.clickHoldMs_);
     if (key2 != -1) {
-        uiContent->ProcessKeyEvent(static_cast<int32_t>(key2), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(key2), static_cast<int32_t>(Ace::KeyAction::DOWN),
+            options.clickHoldMs_);
     }
     DelayMs(DELAY_TIME);
     uiContent->ProcessKeyEvent(static_cast<int32_t>(key0), static_cast<int32_t>(Ace::KeyAction::UP), 0);
@@ -626,32 +588,25 @@ void Component::InputText(const string& text)
 {
     HILOG_DEBUG("Component::InputText");
     ClearText();
+    if (text.empty()) {
+        return;
+    }
     auto uiContent = GetUIContent();
     CHECK_NULL_VOID(uiContent);
-
     Driver driver;
-    componentInfo_.text = text;
-    for (uint32_t i = 0; i < text.length(); i++) {
+    if (TextToKeyCodeCheck(text)) {
         int32_t keycode = -1;
-        if(isupper(text[i])) {
-            keycode = text[i] - UPPER_A + static_cast<int32_t>(Ace::KeyCode::KEY_A);
-            uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_SHIFT_LEFT), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
-            uiContent->ProcessKeyEvent(static_cast<int32_t>(keycode), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
-            uiContent->ProcessKeyEvent(static_cast<int32_t>(keycode), static_cast<int32_t>(Ace::KeyAction::UP), 0);
-            uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_SHIFT_LEFT), static_cast<int32_t>(Ace::KeyAction::UP), 0);
-            continue;
+        for (uint32_t i = 0; i < text.length(); i++) {
+            keycode = Findkeycode(text[i]);
+            driver.TriggerKey(keycode);
+            driver.DelayMs(DELAY_TIME);
         }
-        keycode = Findkeycode(text[i]);
-        if (keycode == -1) {
-            continue;
-        }
-        componentInfo_.text += text[i];
-        HILOG_DEBUG("Component::InputText: %{public}d", keycode);
+    } else {
+        driver.TriggerCombineKeys(static_cast<int32_t>(Ace::KeyCode::KEY_CTRL_LEFT),
+            static_cast<int32_t>(Ace::KeyCode::KEY_V));
         driver.DelayMs(DELAY_TIME);
-        uiContent->ProcessKeyEvent(static_cast<int32_t>(keycode), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
-        uiContent->ProcessKeyEvent(static_cast<int32_t>(keycode), static_cast<int32_t>(Ace::KeyAction::UP), 0);
     }
-    driver.DelayMs(DELAY_TIME);
+    componentInfo_.text = text;
 }
 
 void Component::ClearText()
@@ -668,6 +623,7 @@ void Component::ClearText()
         uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_DEL), static_cast<int32_t>(Ace::KeyAction::UP), 0);
         driver.DelayMs(DELAY_TIME);
     }
+    componentInfo_.text.clear();
 }
 
 void Component::ScrollToTop(int speed)
