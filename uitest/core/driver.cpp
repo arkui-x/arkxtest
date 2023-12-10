@@ -17,7 +17,6 @@
 
 #include <future>
 #include <vector>
-#include <map>
 #include <math.h>
 #include "ability_delegator/ability_delegator_registry.h"
 #include "accessibility_node.h"
@@ -595,9 +594,8 @@ void Component::InputText(const string& text)
     CHECK_NULL_VOID(uiContent);
     Driver driver;
     if (TextToKeyCodeCheck(text)) {
-        int32_t keycode = -1;
         for (uint32_t i = 0; i < text.length(); i++) {
-            keycode = Findkeycode(text[i]);
+            int32_t keycode = Findkeycode(text[i]);
             driver.TriggerKey(keycode);
             driver.DelayMs(DELAY_TIME);
         }
