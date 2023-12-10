@@ -23,6 +23,8 @@ using namespace std;
 using namespace LibN;
 static napi_ref OnRef = nullptr;
 static napi_ref PmRef = nullptr;
+static constexpr const int32_t MAX_FINGERS = 10;
+static constexpr const int32_t MAX_STEPS = 1000;
 
 class ArgsCls {
 public:
@@ -2027,12 +2029,12 @@ napi_value PointerMatrixNExporter::Create(napi_env env, napi_callback_info info)
 
     // fingers  number  是  多指操作中注入的手指数，取值范围：[1,10].
     // steps    number  是  每根手指操作的步骤数，取值范围：[1,1000].
-    if (fingers < 1 || fingers > 10) {
+    if (fingers < 1 || fingers > MAX_FINGERS) {
         HILOG_ERROR("PointerMatrixNExporter::Create Invalid value. fingers[%d]", fingers);
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
     }
-    if (steps < 1 || steps > 1000) {
+    if (steps < 1 || steps > MAX_STEPS) {
         HILOG_ERROR("PointerMatrixNExporter::Create Invalid value. steps[%d]", steps);
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
