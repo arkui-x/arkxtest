@@ -600,8 +600,9 @@ void Component::InputText(const string& text)
             driver.DelayMs(DELAY_TIME);
         }
     } else {
-        driver.TriggerCombineKeys(static_cast<int32_t>(Ace::KeyCode::KEY_CTRL_LEFT),
-            static_cast<int32_t>(Ace::KeyCode::KEY_V));
+        int32_t key0 = static_cast<int32_t>(Ace::KeyCode::KEY_CTRL_LEFT);
+        int32_t key1 = static_cast<int32_t>(Ace::KeyCode::KEY_V);
+        driver.TriggerCombineKeys(key0, key1);
         driver.DelayMs(DELAY_TIME);
     }
     componentInfo_.text = text;
