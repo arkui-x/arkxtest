@@ -172,56 +172,51 @@ void Driver::TriggerCombineKeys(int key0, int key1, int key2)
 
 bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed)
 {
-    // uint32_t fingers = pointers.GetFingers();
     uint32_t steps = pointers.GetSteps();
     if (steps <= 1) {
         HILOG_ERROR("Driver::InjectMultiPointerAction no move.");
         return false;
     }
 
-    // pair Point for ready
-    vector<PointPair> pointPairVec;
-    for (uint16_t step = 0; step < steps - 1; step++) {
-        for (auto it : pointers.GetPointMap()) {
-            PointPair listTemp;
-            listTemp.from = it.second[step];
-            listTemp.to = it.second[step + 1];
-            pointPairVec.push_back(listTemp);
-        }
-    }
-
-    auto uiContent = GetUIContent();
-    CHECK_NULL_RETURN(uiContent, false);
     UiOpArgs options;
     uint32_t injectSpeed = speed;
     if (speed < options.minFlingVelocityPps_ || speed > options.maxFlingVelocityPps_) {
         injectSpeed = options.defaultVelocityPps_;
     }
     std::vector<Ace::TouchEvent> injectEvents;
-    int64_t currentTimeMillis = getCurrentTimeMillis();
-    for (auto it : pointPairVec) {
-        Point start = it.from;
-        Point end = it.to;
+    int64_t curTimeMillis = getCurrentTimeMillis();
+    for (auto it : pointers.GetPointMap()) {
         Ace::TouchEvent downEvent;
-        PackagingEvent(downEvent, TimeStamp(currentTimeMillis), Ace::TouchType::DOWN, start);
+        downEvent.id = it.first;
+        if (it.second.size() == 0) {
+            return false;
+        }
+        PackagingEvent(downEvent, TimeStamp(curTimeMillis), Ace::TouchType::DOWN, it.second[0]);
         injectEvents.push_back(downEvent);
-
-        const int distanceX = end.x - start.x;
-        const int distanceY = end.y - start.y;
-        const int distance = sqrt(distanceX * distanceX + distanceY * distanceY);
-        const uint32_t timeCostMs = (uint32_t)((distance * 1000) / injectSpeed);
-        const uint32_t timeOffsetMs = timeCostMs / INDEX_TWO;
-        Ace::TouchEvent moveEvent;
-        moveEvent = moveEvent.UpdatePointers();
-        PackagingEvent(moveEvent, TimeStamp(currentTimeMillis + timeOffsetMs),
-            Ace::TouchType::MOVE, end);
-        injectEvents.push_back(moveEvent);
-
-        Ace::TouchEvent upEvent;
-        PackagingEvent(upEvent, TimeStamp(currentTimeMillis + timeCostMs), Ace::TouchType::UP, end);
-        injectEvents.push_back(upEvent);
-
     }
+    auto it2 = pointers.GetPointMap().begin();
+    int size2 = it2->second.size();
+    if (size2 <= 1) {
+        return false;
+    }
+    for (int i = 1; i < size2; i++) {
+        for (auto it : pointers.GetPointMap()) {
+            Ace::TouchEvent moveEvent;
+            moveEvent.id = it.first;
+            PackagingEvent(moveEvent, TimeStamp(curTimeMillis + 100 * i), Ace::TouchType::MOVE, it.second[i]);
+            injectEvents.push_back(moveEvent);
+        }
+    }
+    for (auto it : pointers.GetPointMap()) {
+        Ace::TouchEvent upEvent;
+        upEvent.id = it.first;
+        int size = it.second.size();
+        PackagingEvent(upEvent, TimeStamp(curTimeMillis + 100 * steps), Ace::TouchType::UP, it.second[size - 1]);
+        injectEvents.push_back(upEvent);
+    }
+
+    auto uiContent = GetUIContent();
+    CHECK_NULL_RETURN(uiContent, false);
     uiContent->ProcessBasicEvent(injectEvents);
 
     return true;
@@ -737,23 +732,6 @@ Rect Component::GetBounds()
     return rect;
 }
 
-void MakeTouchEvent(int64_t curTimeMillis, uint32_t timeCostMs, Point from, Point to,
-    std::vector<Ace::TouchEvent>& moveEvents)
-{
-     Ace::TouchEvent downEvent;
-    PackagingEvent(downEvent, TimeStamp(curTimeMillis), Ace::TouchType::DOWN, from);
-    moveEvents.push_back(downEvent);
-
-    Ace::TouchEvent moveEvent;
-    PackagingEvent(moveEvent, TimeStamp(curTimeMillis + timeCostMs),
-        Ace::TouchType::MOVE, to);
-    moveEvents.push_back(moveEvent);
-
-    Ace::TouchEvent upEvent;
-    PackagingEvent(upEvent, TimeStamp(curTimeMillis + timeCostMs), Ace::TouchType::UP, to);
-    moveEvents.push_back(upEvent);
-}
-
 void Component::PinchOut(float scale)
 {
     HILOG_DEBUG("Component::PinchOut");
@@ -776,26 +754,16 @@ void Component::PinchOut(float scale)
     toUp.y = fromUp.y - disH;
     toDown.x = fromDown.x;
     toDown.y = fromDown.y + disH;
+    PointerMatrix pointers;
+    pointers.Create(2, 2);
+    pointers.SetPoint(0, 0, fromUp);
+    pointers.SetPoint(0, 1, toUp);
+    pointers.SetPoint(1, 0, fromDown);
+    pointers.SetPoint(1, 1, toDown);
 
-    const int distanceX = fromUp.x - toUp.x;
-    const int distanceY = fromUp.y - toUp.y;
-    const int distance = sqrt(distanceX * distanceX + distanceY * distanceY);
-    if (distance == 0) {
-        HILOG_ERROR("Driver::PinchOut direction ignored. distance is illegal");
-        return;
-    }
-    UiOpArgs options;
-    uint32_t flingSpeed = options.defaultVelocityPps_;
-    const uint32_t timeCostMs = (uint32_t)((distance * 1000) / flingSpeed);
-    int64_t currentTimeMillis = getCurrentTimeMillis();
-    std::vector<Ace::TouchEvent> flingEvents, flingEvents2;
-    MakeTouchEvent(currentTimeMillis, timeCostMs, fromUp, toUp, flingEvents);
-    MakeTouchEvent(currentTimeMillis, timeCostMs, fromDown, toDown, flingEvents2);
-
-    auto uiContent = GetUIContent();
-    CHECK_NULL_VOID(uiContent);
-    uiContent->ProcessBasicEvent(flingEvents);
-    uiContent->ProcessBasicEvent(flingEvents2);
+    Driver driver;
+    driver.InjectMultiPointerAction(pointers);
+    driver.DelayMs(DELAY_TIME);
 
     // set new
     componentInfo_.width = componentInfo_.width * scale;
@@ -819,35 +787,26 @@ void Component::PinchIn(float scale)
     Point fromUp, toUp, fromDown, toDown;
     Point center = GetBoundsCenter();
     // 纵向捏合缩小，默认起点两指距离为高度减1
-    float disH = (componentInfo_.height - INDEX_TWO) * scale;
+    float disH = componentInfo_.height * scale / INDEX_TWO;
     fromUp.x = center.x;
-    fromUp.y = rect.top + INDEX_ONE;
+    fromUp.y = rect.top;
     fromDown.x = center.x;
-    fromDown.y = rect.bottom - INDEX_ONE;
+    fromDown.y = rect.bottom;
     toUp.x = fromUp.x;
     toUp.y = fromUp.y + disH;
     toDown.x = fromDown.x;
     toDown.y = fromDown.y - disH;
 
-    const int distanceX = fromUp.x - toUp.x;
-    const int distanceY = fromUp.y - toUp.y;
-    const int distance = sqrt(distanceX * distanceX + distanceY * distanceY);
-    if (distance == 0) {
-        HILOG_ERROR("Driver::Fling direction ignored. distance is illegal");
-        return;
-    }
-    UiOpArgs options;
-    uint32_t flingSpeed = options.defaultVelocityPps_;
-    const uint32_t timeCostMs = (uint32_t)((distance * 1000) / flingSpeed);
-    int64_t currentTimeMillis = getCurrentTimeMillis();
-    std::vector<Ace::TouchEvent> flingEvents, flingEvents2;
-    MakeTouchEvent(currentTimeMillis, timeCostMs, fromUp, toUp, flingEvents);
-    MakeTouchEvent(currentTimeMillis, timeCostMs, fromDown, toDown, flingEvents2);
+    PointerMatrix pointers;
+    pointers.Create(2, 2);
+    pointers.SetPoint(0, 0, fromUp);
+    pointers.SetPoint(0, 1, toUp);
+    pointers.SetPoint(1, 0, fromDown);
+    pointers.SetPoint(1, 1, toDown);
 
-    auto uiContent = GetUIContent();
-    CHECK_NULL_VOID(uiContent);
-    uiContent->ProcessBasicEvent(flingEvents);
-    uiContent->ProcessBasicEvent(flingEvents2);
+    Driver driver;
+    driver.InjectMultiPointerAction(pointers);
+    driver.DelayMs(DELAY_TIME);
 
     // set new
     componentInfo_.width = componentInfo_.width * scale;
@@ -1271,14 +1230,12 @@ PointerMatrix* PointerMatrix::Create(uint32_t fingers, uint32_t steps)
 
 void PointerMatrix::SetPoint(uint32_t finger, uint32_t step, Point& point)
 {
-    if (this->fingerNum_ == 0 || this->stepNum_ == 0) {
-        return;
-    }
-    if (finger < this->fingerNum_) {
-        if (step < this->stepNum_) {
-            vector<Point>& pointVec = fingerPointMap_[finger];
+    if (finger >= 0 && finger < this->fingerNum_) {
+        if (step >= 0 && step < this->stepNum_) {
+            vector<Point>& pointVec = this->fingerPointMap_[finger];
             Point pointTmp = point;
             pointVec.push_back(pointTmp);
+            this->fingerPointMap_[finger] = pointVec;
         }
     }
 }
