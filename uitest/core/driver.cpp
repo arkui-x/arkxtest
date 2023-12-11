@@ -32,7 +32,7 @@ static constexpr const int32_t DOUBLE_CLICK = 2;
 static constexpr const char UPPER_A = 'A';
 static constexpr const char LOWER_A = 'a';
 static constexpr const char DEF_NUMBER = '0';
-static constexpr const int32_t DELAY_TIME= 100;
+static constexpr const int32_t DELAY_TIME = 100;
 constexpr size_t INDEX_ZERO = 0;
 constexpr size_t INDEX_ONE = 1;
 constexpr size_t INDEX_TWO = 2;
@@ -185,7 +185,7 @@ bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed)
     }
     std::vector<Ace::TouchEvent> injectEvents;
     int64_t curTimeMillis = getCurrentTimeMillis();
-    for (auto it : pointers.GetPointMap()) {
+    for (auto it : pointers.fingerPointMap_) {
         Ace::TouchEvent downEvent;
         downEvent.id = it.first;
         if (it.second.size() == 0) {
@@ -194,24 +194,24 @@ bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed)
         PackagingEvent(downEvent, TimeStamp(curTimeMillis), Ace::TouchType::DOWN, it.second[0]);
         injectEvents.push_back(downEvent);
     }
-    auto it2 = pointers.GetPointMap().begin();
+    auto it2 = pointers.fingerPointMap_.begin();
     int size2 = it2->second.size();
     if (size2 <= 1) {
         return false;
     }
     for (int i = 1; i < size2; i++) {
-        for (auto it : pointers.GetPointMap()) {
+        for (auto it : pointers.fingerPointMap_) {
             Ace::TouchEvent moveEvent;
             moveEvent.id = it.first;
-            PackagingEvent(moveEvent, TimeStamp(curTimeMillis + 100 * i), Ace::TouchType::MOVE, it.second[i]);
+            PackagingEvent(moveEvent, TimeStamp(curTimeMillis + DELAY_TIME * i), Ace::TouchType::MOVE, it.second[i]);
             injectEvents.push_back(moveEvent);
         }
     }
-    for (auto it : pointers.GetPointMap()) {
+    for (auto it : pointers.fingerPointMap_) {
         Ace::TouchEvent upEvent;
         upEvent.id = it.first;
         int size = it.second.size();
-        PackagingEvent(upEvent, TimeStamp(curTimeMillis + 100 * steps), Ace::TouchType::UP, it.second[size - 1]);
+        PackagingEvent(upEvent, TimeStamp(curTimeMillis + DELAY_TIME * steps), Ace::TouchType::UP, it.second[size - 1]);
         injectEvents.push_back(upEvent);
     }
 
@@ -1230,12 +1230,11 @@ PointerMatrix* PointerMatrix::Create(uint32_t fingers, uint32_t steps)
 
 void PointerMatrix::SetPoint(uint32_t finger, uint32_t step, Point& point)
 {
-    if (finger >= 0 && finger < this->fingerNum_) {
-        if (step >= 0 && step < this->stepNum_) {
+    if (finger < this->fingerNum_) {
+        if (step < this->stepNum_) {
             vector<Point>& pointVec = this->fingerPointMap_[finger];
             Point pointTmp = point;
             pointVec.push_back(pointTmp);
-            this->fingerPointMap_[finger] = pointVec;
         }
     }
 }
@@ -1256,10 +1255,6 @@ uint32_t PointerMatrix::GetSteps() const
 uint32_t PointerMatrix::GetFingers() const
 {
     return this->fingerNum_;
-}
-
-std::map<int, std::vector<Point>> PointerMatrix::GetPointMap() const {
-    return this->fingerPointMap_;
 }
 
 } // namespace OHOS::UiTest

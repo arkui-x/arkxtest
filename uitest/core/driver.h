@@ -206,7 +206,6 @@ public:
     PointerMatrix& operator=(PointerMatrix&& other);
     uint32_t GetSteps() const;
     uint32_t GetFingers() const;
-    std::map<int, std::vector<Point>> GetPointMap() const;
     // finger, (step, point)
     std::map<int, std::vector<Point>> fingerPointMap_;
 private:
