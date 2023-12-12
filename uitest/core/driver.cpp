@@ -177,12 +177,7 @@ bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed)
         HILOG_ERROR("Driver::InjectMultiPointerAction no move.");
         return false;
     }
-
-    UiOpArgs options;
-    uint32_t injectSpeed = speed;
-    if (speed < options.minFlingVelocityPps_ || speed > options.maxFlingVelocityPps_) {
-        injectSpeed = options.defaultVelocityPps_;
-    }
+    // speed will add later
     std::vector<Ace::TouchEvent> injectEvents;
     int64_t curTimeMillis = getCurrentTimeMillis();
     for (auto it : pointers.fingerPointMap_) {
