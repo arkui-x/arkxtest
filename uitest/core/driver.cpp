@@ -607,7 +607,7 @@ void Component::ClearText()
     uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_MOVE_END), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
     uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_MOVE_END), static_cast<int32_t>(Ace::KeyAction::UP), 0);
     Driver driver;
-    for (int i = 0; i < componentInfo_.text.length(); i++) {
+    for (uint32_t i = 0; i < componentInfo_.text.length(); i++) {
         uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_DEL), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
         uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_DEL), static_cast<int32_t>(Ace::KeyAction::UP), 0);
         driver.DelayMs(DELAY_TIME);
@@ -735,7 +735,6 @@ void Component::PinchOut(float scale)
         return;
     }
     float scaleOpt = scale - 1.0;
-    Rect rect = GetBounds();
     // 捏合 两指操作距离 = 两指起点距离 * 倍数
     Point fromUp, toUp, fromDown, toDown;
     Point center = GetBoundsCenter();
