@@ -34,10 +34,13 @@ enum CommonType : int32_t {
     SCROLLABLE,
     ENABLED,
     FOCUSED,
-    LONGCLICKABLE
+    LONGCLICKABLE,
+    ISBEFORE,
+    ISAFTER,
+    WITHIN
 };
 
-enum UiDirection {
+enum UiDirection : int32_t {
     LEFT = 0,
     RIGHT,
     UP,
@@ -91,6 +94,7 @@ public:
 };
 
 class PointerMatrix;
+class Component;
 
 class On {
 public:
@@ -105,9 +109,9 @@ public:
     On* Scrollable(bool scrollable);
     On* Checkable(bool checkable);
     On* Checked(bool checked);
-    On* IsBefore(const On& on);
-    On* IsAfter(const On& on);
-    On* Within(const On& on);
+    On* IsBefore(On* on);
+    On* IsAfter(On* on);
+    On* WithIn(On* on);
 
     shared_ptr<string> id;
     shared_ptr<string> text;
@@ -120,21 +124,16 @@ public:
     shared_ptr<bool> selected;
     shared_ptr<bool> checked;
     shared_ptr<bool> checkable;
+    weak_ptr<On> isBefore;
+    weak_ptr<On> isAfter;
+    weak_ptr<On> withIn;
     MatchPattern pattern_ = MatchPattern::EQUALS;
 
     bool CompareText(const string& text) const;
     bool isEnter = false;
-private:
-    void SetComponentInfo(OHOS::Ace::Platform::ComponentInfo& info);
 };
 
 bool operator == (const On& on, const OHOS::Ace::Platform::ComponentInfo& info);
-static void GetComponentvalue(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
-    OHOS::Ace::Platform::ComponentInfo& ret, std::vector<float>& rootrange);
-
-static bool GetParentComponent(OHOS::Ace::Platform::ComponentInfo& component,const On& on,
-    int& ret, OHOS::Ace::Platform::ComponentInfo& parent,
-    std::vector<float>& rootrange);
 
 class Component {
 public:
@@ -162,15 +161,15 @@ public:
     void PinchIn(float scale);
 
     void SetComponentInfo(const OHOS::Ace::Platform::ComponentInfo& com);
-    OHOS::Ace::Platform::ComponentInfo GetComponentInfo() const;
+    OHOS::Ace::Platform::ComponentInfo GetComponentInfo();
+    void SetParentComponent(const shared_ptr<Component> parent);
+    shared_ptr<Component> GetParentComponent();
     unique_ptr<Component> ScrollSearch(const On& on);
     Point GetBoundsCenter();
 
 private:
     OHOS::Ace::Platform::ComponentInfo componentInfo_;
-    // 建议用在SetComponentInfo等，赋值初始化之后。捏合放大与缩小的基础数据
-    Rect GetDefaultBounds() const;
-    Rect defaultRect_;
+    shared_ptr<Component> parentComponent_;
 };
 
 class Driver {
@@ -183,37 +182,35 @@ public:
 
     void TriggerKey(int keyCode);
     void TriggerCombineKeys(int key0, int key1, int key2 = -1);
-    bool InjectMultiPointerAction(PointerMatrix& pointers, int speed = opt.defaultVelocityPps_);
+    bool InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed = 0);
     
     void DelayMs(int dur);
     void Click(int x, int y);
     void DoubleClick(int x, int y);
     void LongClick(int x, int y);
-    void Swipe(int startx, int starty, int endx, int endy, int speed);
-    void Fling(const Point& from, const Point& to, int stepLen, int speed = opt.defaultVelocityPps_);
-    void Fling(UiDirection direction, int speed = opt.defaultVelocityPps_);
+    void Swipe(int startx, int starty, int endx, int endy, uint32_t speed);
+    void Fling(const Point& from, const Point& to, int stepLen, uint32_t speed = 0);
+    void Fling(UiDirection direction, uint32_t speed = 0);
     unique_ptr<Component> FindComponent(const On& on);
     vector<unique_ptr<Component>> FindComponents(const On& on);
-private:
-    static UiOpArgs opt;
+    void CalculateDirection(const OHOS::Ace::Platform::ComponentInfo& info,
+        const UiDirection& direction, Point& from, Point& to);
 };
 
 class PointerMatrix {
 public:
     PointerMatrix() = default;
-    ~PointerMatrix();
-    static PointerMatrix* Create(uint32_t fingers, uint32_t steps);
+    ~PointerMatrix() = default;
+    PointerMatrix* Create(uint32_t fingers, uint32_t steps);
     void SetPoint(uint32_t finger, uint32_t step, Point& point);
     PointerMatrix& operator=(PointerMatrix&& other);
     uint32_t GetSteps() const;
     uint32_t GetFingers() const;
-    std::map<int, std::vector<Point>> GetPointMap() const;
     // finger, (step, point)
     std::map<int, std::vector<Point>> fingerPointMap_;
 private:
     uint32_t fingerNum_ = 0;
     uint32_t stepNum_ = 0;
-    static PointerMatrix* pm;
 };
 
 } // namespace OHOS::UiTest

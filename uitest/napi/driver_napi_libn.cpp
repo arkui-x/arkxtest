@@ -22,6 +22,9 @@ namespace OHOS::UiTest {
 using namespace std;
 using namespace LibN;
 static napi_ref OnRef = nullptr;
+static napi_ref PmRef = nullptr;
+static constexpr const int32_t MAX_FINGERS = 10;
+static constexpr const int32_t MAX_STEPS = 1000;
 
 class ArgsCls {
 public:
@@ -258,88 +261,69 @@ napi_value OnNExporter::Checkable(napi_env env, napi_callback_info info)
     return OnTemplate(env, info, CommonType::CHECKABLE);
 }
 
-napi_value OnNExporter::IsBefore(napi_env env, napi_callback_info info)
+static napi_value RelativeOnTemplate(napi_env env, napi_callback_info info, int32_t type)
 {
-    HILOG_DEBUG("OnNExporter::IsBefore begin");
+    HILOG_DEBUG("Uitest:: RelativeOnTemplate begin.");
     NFuncArg funcArg(env, info);
     if (!funcArg.InitArgs(NARG_CNT::ONE)) {
-        HILOG_ERROR("OnNExporter::IsBefore Number of arguments unmatched");
+        HILOG_ERROR("WithIn Number of arguments unmatched");
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
     }
 
-    // on::Text
+    auto relativeOn = NClass::GetEntityOf<On>(env, NVal(env, funcArg[NARG_POS::FIRST]).val_);
+    if (!relativeOn) {
+        HILOG_ERROR("Cannot get entity of parameterOn");
+        return nullptr;
+    }
+
     napi_value thisVar = Instantiate(env, funcArg.GetThisVar());
-    auto onVar = NClass::GetEntityOf<On>(env, thisVar);
-    if (!onVar) {
-        HILOG_ERROR("OnNExporter::IsBefore Cannot get entity of on");
+    auto on = NClass::GetEntityOf<On>(env, thisVar);
+    if (on == nullptr) {
+        HILOG_ERROR("Cannot get entity of on");
         return nullptr;
     }
-
-    auto on = NClass::GetEntityOf<On>(env, NVal(env, funcArg[NARG_POS::FIRST]).val_);
-    if (!on) {
-        HILOG_ERROR("OnNExporter::IsBefore Cannot get entity of on");
-        return nullptr;
+    switch (type)
+    {
+    case CommonType::ISBEFORE:
+        if (!on->IsBefore(relativeOn)) {
+            HILOG_ERROR("Cannot put attributions to on");
+            return nullptr;
+        }
+        break;
+    case CommonType::ISAFTER:
+        if (!on->IsAfter(relativeOn)) {
+            HILOG_ERROR("Cannot put attributions to on");
+            return nullptr;
+        }
+        break;
+    case CommonType::WITHIN:
+        if (!on->WithIn(relativeOn)) {
+            HILOG_ERROR("Cannot put attributions to on");
+            return nullptr;
+        }
+        break;
+    default:
+        HILOG_ERROR("Cannot read type of RelativeOn");
+        break;
     }
-
-    onVar->IsBefore(*on);
-    HILOG_DEBUG("OnNExporter::IsBefore end.");
+    HILOG_DEBUG("Uitest:: RelativeOnTemplate end.");
     return thisVar;
+}
+
+napi_value OnNExporter::IsBefore(napi_env env, napi_callback_info info)
+{
+    return RelativeOnTemplate(env, info, CommonType::ISBEFORE);
 }
 
 napi_value OnNExporter::IsAfter(napi_env env, napi_callback_info info)
 {
-    HILOG_DEBUG("OnNExporter::IsAfter begin");
-    NFuncArg funcArg(env, info);
-    if (!funcArg.InitArgs(NARG_CNT::ONE)) {
-        HILOG_ERROR("OnNExporter::IsAfter Number of arguments unmatched");
-        NError(E_PARAMS).ThrowErr(env);
-        return nullptr;
-    }
-
-    napi_value thisVar = Instantiate(env, funcArg.GetThisVar());
-    auto onVar = NClass::GetEntityOf<On>(env, thisVar);
-    if (!onVar) {
-        HILOG_ERROR("OnNExporter::IsAfter Cannot get entity of on");
-        return nullptr;
-    }
-
-    auto on = NClass::GetEntityOf<On>(env, NVal(env, funcArg[NARG_POS::FIRST]).val_);
-    if (!on) {
-        HILOG_ERROR("OnNExporter::IsAfter Cannot get entity of on");
-        return nullptr;
-    }
-
-    onVar->IsAfter(*on);
-    HILOG_DEBUG("OnNExporter::IsAfter end.");
-    return thisVar;
+    return RelativeOnTemplate(env, info, CommonType::ISAFTER);
 }
 
-napi_value OnNExporter::Within(napi_env env, napi_callback_info info)
+napi_value OnNExporter::WithIn(napi_env env, napi_callback_info info)
 {
-    HILOG_DEBUG("OnNExporter::Within begin");
-    NFuncArg funcArg(env, info);
-    if (!funcArg.InitArgs(NARG_CNT::ONE)) {
-        HILOG_ERROR("OnNExporter::Within Number of arguments unmatched");
-        NError(E_PARAMS).ThrowErr(env);
-        return nullptr;
-    }
-    napi_value thisVar = Instantiate(env, funcArg.GetThisVar());
-    auto onVar = NClass::GetEntityOf<On>(env, thisVar);
-    if (!onVar) {
-        HILOG_ERROR("OnNExporter::Within Cannot get entity of on");
-        return nullptr;
-    }
-
-    auto on = NClass::GetEntityOf<On>(env, NVal(env, funcArg[NARG_POS::FIRST]).val_);
-    if (!on) {
-        HILOG_ERROR("OnNExporter::Within Cannot get entity of on");
-        return nullptr;
-    }
-
-    onVar->Within(*on);
-    HILOG_DEBUG("OnNExporter::Within end.");
-    return thisVar;
+    return RelativeOnTemplate(env, info, CommonType::WITHIN);
 }
 
 static napi_value OnInitializer(napi_env env, napi_callback_info info)
@@ -379,7 +363,7 @@ bool OnNExporter::Export()
         NVal::DeclareNapiFunction(OnNExporter::FUNCTION_CHECKABLE, OnNExporter::Checkable),
         NVal::DeclareNapiFunction(OnNExporter::FUNCTION_ISBEFORE, OnNExporter::IsBefore),
         NVal::DeclareNapiFunction(OnNExporter::FUNCTION_ISAFTER, OnNExporter::IsAfter),
-        NVal::DeclareNapiFunction(OnNExporter::FUNCTION_WITHIN, OnNExporter::Within),
+        NVal::DeclareNapiFunction(OnNExporter::FUNCTION_WITHIN, OnNExporter::WithIn),
     };
     auto [succ, classValue] = NClass::DefineClass(exports_.env_, OnNExporter::ON_CLASS_NAME, OnInitializer,
         std::move(props));
@@ -1081,15 +1065,11 @@ napi_value ComponentNExporter::PinchOut(napi_env env, napi_callback_info info)
         return nullptr;
     }
 
-    float scale_ = 0.0f;
-    if (funcArg.GetArgc() == NARG_CNT::ONE) {
-        auto [succ, scale] = NVal(env, funcArg[NARG_POS::FIRST]).ToDouble();
-        if (!succ) {
-            HILOG_ERROR("Get PinchOut parameter failed!");
-            NError(E_PARAMS).ThrowErr(env);
-            return nullptr;
-        }
-        scale_ = scale;
+    auto [succ, scale] = NVal(env, funcArg[NARG_POS::FIRST]).ToDouble();
+    if (!succ) {
+        HILOG_ERROR("Get PinchOut parameter failed!");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
     }
 
     auto component = NClass::GetEntityOf<Component>(env, funcArg.GetThisVar());
@@ -1098,7 +1078,7 @@ napi_value ComponentNExporter::PinchOut(napi_env env, napi_callback_info info)
         NError(E_DESTROYED).ThrowErr(env);
         return nullptr;
     }
-
+    float scale_ = scale;
     auto cbExec = [component, scale_]() -> NError {
         component->PinchOut(scale_);
         return NError(ERRNO_NOERR);
@@ -1126,15 +1106,11 @@ napi_value ComponentNExporter::PinchIn(napi_env env, napi_callback_info info)
         return nullptr;
     }
 
-    float scale_ = 0.0f;
-    if (funcArg.GetArgc() == NARG_CNT::ONE) {
-        auto [succ, scale] = NVal(env, funcArg[NARG_POS::FIRST]).ToDouble();
-        if (!succ) {
-            HILOG_ERROR("Get PinchIn parameter failed!");
-            NError(E_PARAMS).ThrowErr(env);
-            return nullptr;
-        }
-        scale_ = scale;
+    auto [succ, scale] = NVal(env, funcArg[NARG_POS::FIRST]).ToDouble();
+    if (!succ) {
+        HILOG_ERROR("Get PinchIn parameter failed!");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
     }
 
     auto component = NClass::GetEntityOf<Component>(env, funcArg.GetThisVar());
@@ -1143,7 +1119,7 @@ napi_value ComponentNExporter::PinchIn(napi_env env, napi_callback_info info)
         NError(E_DESTROYED).ThrowErr(env);
         return nullptr;
     }
-
+    float scale_ = scale;
     auto cbExec = [component, scale_]() -> NError {
         component->PinchIn(scale_);
         return NError(ERRNO_NOERR);
@@ -1427,17 +1403,17 @@ napi_value DriverNExporter::InjectMultiPointerAction(napi_env env, napi_callback
         }
         speed = number;
     }
-    // PointerMatrix pointerMatrix = *poMatrix;
-    auto cbExec = [driver, poMatrix, sp = speed]() -> NError {
-        driver->InjectMultiPointerAction(*poMatrix, sp);
+    bool ret = false;
+    auto cbExec = [&ret, driver, poMatrix, sp = speed]() -> NError {
+        ret = driver->InjectMultiPointerAction(*poMatrix, sp);
         return NError(ERRNO_NOERR);
     };
 
-    auto cbCompl = [](napi_env env, NError err) -> NVal {
+    auto cbCompl = [&ret](napi_env env, NError err) -> NVal {
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
-        return NVal::CreateUndefined(env);
+        return NVal::CreateBool(env, ret);
     };
 
     NVal thisVar(env, funcArg.GetThisVar());
@@ -2014,6 +1990,19 @@ PointerMatrixNExporter::PointerMatrixNExporter(napi_env env, napi_value exports)
 
 PointerMatrixNExporter::~PointerMatrixNExporter() {}
 
+static napi_value InstantiateMatrix(napi_env env, napi_value thisVar)
+{
+    napi_value pmVal = nullptr;
+    napi_get_reference_value(env, PmRef, &pmVal);
+    bool result;
+    napi_strict_equals(env, pmVal, thisVar, &result);
+    if (result) {
+        HILOG_DEBUG("Uitest:: PointerMatrix addr equals.");
+        thisVar = NClass::InstantiateClass(env, PointerMatrixNExporter::POINTER_MATRIX_CLASS_NAME, {});
+    }
+    return thisVar;
+}
+
 napi_value PointerMatrixNExporter::Create(napi_env env, napi_callback_info info)
 {
     HILOG_DEBUG("PointerMatrixNExporter::Create begin");
@@ -2021,12 +2010,6 @@ napi_value PointerMatrixNExporter::Create(napi_env env, napi_callback_info info)
     if (!funcArg.InitArgs(NARG_CNT::TWO)) {
         HILOG_ERROR("PointerMatrixNExporter::Create Number of arguments unmatched");
         NError(E_PARAMS).ThrowErr(env);
-        return nullptr;
-    }
-
-    auto pointerMatrix = NClass::GetEntityOf<PointerMatrix>(env, funcArg.GetThisVar());
-    if (pointerMatrix == nullptr) {
-        HILOG_ERROR("Cannot get entity of pointerMatrix");
         return nullptr;
     }
 
@@ -2043,17 +2026,48 @@ napi_value PointerMatrixNExporter::Create(napi_env env, napi_callback_info info)
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
     }
-    napi_ref ref = nullptr;
-    napi_value jsVar = nullptr;
-    napi_get_reference_value(env, ref, &jsVar);
 
-    PointerMatrix* poMatrix = pointerMatrix->Create(fingers, steps);
-    std::unique_ptr<PointerMatrix> poPtr(poMatrix);
-    if (!NClass::SetEntityFor<PointerMatrix>(env, jsVar, move(poPtr))) {
+    // fingers  number  是  多指操作中注入的手指数，取值范围：[1,10].
+    // steps    number  是  每根手指操作的步骤数，取值范围：[1,1000].
+    if (fingers < 1 || fingers > MAX_FINGERS) {
+        HILOG_ERROR("PointerMatrixNExporter::Create Invalid value. fingers[%d]", fingers);
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
+    }
+    if (steps < 1 || steps > MAX_STEPS) {
+        HILOG_ERROR("PointerMatrixNExporter::Create Invalid value. steps[%d]", steps);
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
+    }
+
+    auto pMatrix = NClass::GetEntityOf<PointerMatrix>(env, funcArg.GetThisVar());
+    if (pMatrix == nullptr) {
+        HILOG_ERROR("Cannot get entity of pMatrix");
+        return nullptr;
+    }
+
+    napi_value jsMatrix = NClass::InstantiateClass(env, PointerMatrixNExporter::POINTER_MATRIX_CLASS_NAME, {});
+    if (!jsMatrix) {
+        HILOG_ERROR("Failed to instantiate jsMatrix class");
+        return nullptr;
+    }
+    napi_ref ref = nullptr;
+    napi_create_reference(env, jsMatrix, 1, &ref);
+
+    pMatrix->Create(fingers, steps);
+    if (pMatrix == nullptr) {
+        HILOG_ERROR("Cannot get entity of pMatrix");
+        return nullptr;
+    }
+    unique_ptr<PointerMatrix> pmPtr(pMatrix);
+    napi_value jsMatrix_ = nullptr;
+    napi_get_reference_value(env, ref, &jsMatrix_);
+    if (!NClass::SetEntityFor<PointerMatrix>(env, jsMatrix_, move(pmPtr))) {
         HILOG_ERROR("Failed to set PointerMatrix entity");
         return nullptr;
     }
-    return jsVar;
+    HILOG_DEBUG("PointerMatrixNExporter::Create Success!");
+    return jsMatrix_;
 }
 
 napi_value PointerMatrixNExporter::SetPoint(napi_env env, napi_callback_info info)
@@ -2074,14 +2088,14 @@ napi_value PointerMatrixNExporter::SetPoint(napi_env env, napi_callback_info inf
 
     auto [resGetFirstArg, finger] = NVal(env, funcArg[NARG_POS::FIRST]).ToInt32();
     if (!resGetFirstArg) {
-        HILOG_ERROR("PointerMatrixNExporter::Create Invalid fingers");
+        HILOG_ERROR("PointerMatrixNExporter::Create Invalid finger");
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
     }
 
     auto [resGetSecondArg, step] = NVal(env, funcArg[NARG_POS::SECOND]).ToInt32();
     if (!resGetSecondArg) {
-        HILOG_ERROR("PointerMatrixNExporter::Create Invalid steps");
+        HILOG_ERROR("PointerMatrixNExporter::Create Invalid step");
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
     }
@@ -2106,7 +2120,12 @@ static napi_value PointerMatrixInitializer(napi_env env, napi_callback_info info
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
     }
-
+    auto pointerMatrix = make_unique<PointerMatrix>();
+    if (!NClass::SetEntityFor<PointerMatrix>(env, funcArg.GetThisVar(), move(pointerMatrix))) {
+        HILOG_ERROR("Failed to set pointerMatrix entity");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
+    }
     HILOG_DEBUG("PointerMatrix Initializer end");
     return funcArg.GetThisVar();
 }
@@ -2116,10 +2135,11 @@ bool PointerMatrixNExporter::Export()
     HILOG_DEBUG("Uitest::PointerMatrixNExporter Export begin");
     vector<napi_property_descriptor> props = {
         NVal::DeclareNapiStaticFunction(PointerMatrixNExporter::FUNCTION_CREATE, PointerMatrixNExporter::Create),
+        NVal::DeclareNapiFunction(PointerMatrixNExporter::FUNCTION_CREATE, PointerMatrixNExporter::Create),
         NVal::DeclareNapiFunction(PointerMatrixNExporter::FUNCTION_SET_POINT, PointerMatrixNExporter::SetPoint),
     };
-    auto [succ, classValue] = NClass::DefineClass(exports_.env_, PointerMatrixNExporter::POINTER_MATRIX_CLASS_NAME, PointerMatrixInitializer,
-        std::move(props));
+    auto [succ, classValue] = NClass::DefineClass(exports_.env_, PointerMatrixNExporter::POINTER_MATRIX_CLASS_NAME,
+        PointerMatrixInitializer, std::move(props));
     if (!succ) {
         HILOG_ERROR("Failed to define PointerMatrixNExporter class");
         NError(EIO).ThrowErr(exports_.env_);
@@ -2132,8 +2152,14 @@ bool PointerMatrixNExporter::Export()
         return false;
     }
 
+    napi_value pMtr = NClass::InstantiateClass(exports_.env_, PointerMatrixNExporter::POINTER_MATRIX_CLASS_NAME, {});
+    if (!pMtr) {
+        HILOG_ERROR("Failed to instantiate ON class");
+        return false;
+    }
+    napi_create_reference(exports_.env_, pMtr, 1, &PmRef);
     HILOG_DEBUG("Uitest::PointerMatrixNExporter Export end");
-    return exports_.AddProp(PointerMatrixNExporter::POINTER_MATRIX_CLASS_NAME, classValue);
+    return exports_.AddProp(PointerMatrixNExporter::POINTER_MATRIX_CLASS_NAME, pMtr);
 }
 
 string PointerMatrixNExporter::GetClassName()
