@@ -73,7 +73,7 @@ ohos_source_set("uitest_core_static") {
     ]
   }
 
-  if (is_cross_platform_build) {
+  if (is_arkui_x) {
     include_dirs += [ "$plugins_root/hilog/include" ]
     if (target_os == "android") {
       defines = [ "ANDROID_PLATFORM" ]
