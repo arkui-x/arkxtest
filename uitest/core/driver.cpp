@@ -162,24 +162,40 @@ void Driver::TriggerKey(int keyCode)
 void Driver::TriggerCombineKeys(int key0, int key1, int key2)
 {
     auto uiContent = GetUIContent();
+    CHECK_NULL_VOID(uiContent);
     if (key0 == -1 || key1 == -1) {
         return;
     }
+    Driver driver;
     HILOG_DEBUG("Driver::TriggerCombineKeys: %{public}d %{public}d %{public}d", key0, key1, key2);
-    UiOpArgs options;
-    uiContent->ProcessKeyEvent(static_cast<int32_t>(key0), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
-    uiContent->ProcessKeyEvent(static_cast<int32_t>(key1), static_cast<int32_t>(Ace::KeyAction::DOWN),
-        options.clickHoldMs_);
-    if (key2 != -1) {
-        uiContent->ProcessKeyEvent(static_cast<int32_t>(key2), static_cast<int32_t>(Ace::KeyAction::DOWN),
-            options.clickHoldMs_);
-    }
-    DelayMs(DELAY_TIME);
-    uiContent->ProcessKeyEvent(static_cast<int32_t>(key0), static_cast<int32_t>(Ace::KeyAction::UP), 0);
-    uiContent->ProcessKeyEvent(static_cast<int32_t>(key1), static_cast<int32_t>(Ace::KeyAction::UP), 0);
-    if (key2 != -1) {
+    // int32_t metaKey 参数取值: CTRL = 1,    SHIFT = 2,    ALT = 4,    META = 8,
+    if (key0 == static_cast<int32_t>(Ace::KeyCode::KEY_CTRL_LEFT) ||
+        key0 == static_cast<int32_t>(Ace::KeyCode::KEY_CTRL_RIGHT)) {
+        uiContent->ProcessKeyEvent(key1, static_cast<int32_t>(Ace::KeyAction::DOWN), 0, 0, 0, 1);
+        uiContent->ProcessKeyEvent(key1, static_cast<int32_t>(Ace::KeyAction::UP), 0, 0, 0, 1);
+    } else if (key0 == static_cast<int32_t>(Ace::KeyCode::KEY_SHIFT_LEFT) ||
+        key0 == static_cast<int32_t>(Ace::KeyCode::KEY_SHIFT_RIGHT)) {
+        uiContent->ProcessKeyEvent(key1, static_cast<int32_t>(Ace::KeyAction::DOWN), 0, 0, 0, 2);
+        uiContent->ProcessKeyEvent(key1, static_cast<int32_t>(Ace::KeyAction::UP), 0, 0, 0, 2);
+    } else if (key0 == static_cast<int32_t>(Ace::KeyCode::KEY_ALT_LEFT) ||
+        key0 == static_cast<int32_t>(Ace::KeyCode::KEY_ALT_RIGHT)) {
+        uiContent->ProcessKeyEvent(key1, static_cast<int32_t>(Ace::KeyAction::DOWN), 0, 0, 0, 4);
+        uiContent->ProcessKeyEvent(key1, static_cast<int32_t>(Ace::KeyAction::UP), 0, 0, 0, 4);
+    } else if (key0 == static_cast<int32_t>(Ace::KeyCode::KEY_META_LEFT) ||
+        key0 == static_cast<int32_t>(Ace::KeyCode::KEY_META_RIGHT)) {
+        uiContent->ProcessKeyEvent(key1, static_cast<int32_t>(Ace::KeyAction::DOWN), 0, 0, 0, 8);
+        uiContent->ProcessKeyEvent(key1, static_cast<int32_t>(Ace::KeyAction::UP), 0, 0, 0, 8);
+    } else {
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(key0), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(key1), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(key2), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+        driver.DelayMs(DELAY_TIME);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(key0), static_cast<int32_t>(Ace::KeyAction::UP), 0);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(key1), static_cast<int32_t>(Ace::KeyAction::UP), 0);
         uiContent->ProcessKeyEvent(static_cast<int32_t>(key2), static_cast<int32_t>(Ace::KeyAction::UP), 0);
     }
+    driver.DelayMs(DELAY_TIME);
+    // key2待支持
 }
 
 bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed)
