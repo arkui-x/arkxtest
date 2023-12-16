@@ -43,18 +43,29 @@ constexpr size_t INDEX_SIX = 6;
 static bool BEFORE_FLAG = false;
 static bool AFTER_FLAG = false;
 
-int32_t Findkeycode(const char ch)
+
+int32_t Findkeycode(const char ch, int32_t& metaKey, int32_t& keycode)
 {
+    metaKey = 0;
+    if (isupper(ch)) {
+        metaKey = 2; // int32_t metaKey 参数取值: CTRL = 1,    SHIFT = 2,    ALT = 4,    META = 8,
+        keycode = static_cast<int32_t>(ch - UPPER_A) + static_cast<int32_t>(Ace::KeyCode::KEY_A);
+        return 0;
+    }
+
     if(islower(ch)) {
-        return (static_cast<int32_t>(ch - LOWER_A) + static_cast<int32_t>(Ace::KeyCode::KEY_A));
+        keycode = static_cast<int32_t>(ch - LOWER_A) + static_cast<int32_t>(Ace::KeyCode::KEY_A);
+        return 0;
     }
 
     if (isdigit(ch)) {
-        return (static_cast<int32_t>(ch - DEF_NUMBER) + static_cast<int32_t>(Ace::KeyCode::KEY_0));
+        keycode = static_cast<int32_t>(ch - DEF_NUMBER) + static_cast<int32_t>(Ace::KeyCode::KEY_0);
+        return 0;
     }
 
     if (isspace(ch)) { // 空格
-        return static_cast<int32_t>(Ace::KeyCode::KEY_SPACE);
+        keycode = static_cast<int32_t>(Ace::KeyCode::KEY_SPACE);
+        return 0;
     }
     HILOG_DEBUG("Please enter lowercase letters and numbers or space.");
     return -1;
@@ -65,7 +76,8 @@ bool TextToKeyCodeCheck(string text)
     if (!text.empty()) {
         vector<char> chars(text.begin(), text.end()); // decompose to sing-char input sequence
         for (auto ch : chars) {
-            if (Findkeycode(ch) == -1) {
+            int32_t metaKey, keycode;
+            if (Findkeycode(ch, metaKey, keycode) == -1) {
                 return false;
             }
         }
@@ -585,8 +597,10 @@ void Component::InputText(const string& text)
     Driver driver;
     if (TextToKeyCodeCheck(text)) {
         for (uint32_t i = 0; i < text.length(); i++) {
-            int32_t keycode = Findkeycode(text[i]);
-            driver.TriggerKey(keycode);
+            int32_t metaKey, keycode;
+            Findkeycode(text[i], metaKey, keycode);
+            uiContent->ProcessKeyEvent(keycode, static_cast<int32_t>(Ace::KeyAction::DOWN), 0, 0, 0, metaKey);
+            uiContent->ProcessKeyEvent(keycode, static_cast<int32_t>(Ace::KeyAction::UP), 0, 0, 0, metaKey);
             driver.DelayMs(DELAY_TIME);
         }
     } else {
