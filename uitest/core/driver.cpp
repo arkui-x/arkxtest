@@ -902,16 +902,6 @@ OHOS::Ace::Platform::ComponentInfo Component::GetComponentInfo()
     return componentInfo_;
 }
 
-void Component::SetParentComponent(const shared_ptr<Component> parent)
-{
-    parentComponent_ = parent;
-}
-
-shared_ptr<Component> Component::GetParentComponent()
-{
-    return parentComponent_;
-}
-
 Point Component::GetBoundsCenter()
 {
     HILOG_DEBUG("Component::GetBoundsCenter");
@@ -1120,7 +1110,6 @@ static void GetAllComponentInfos(OHOS::Ace::Platform::ComponentInfo& componentIn
 
     auto component = make_shared<Component>();
     component->SetComponentInfo(componentInfo);
-    component->SetParentComponent(parentComponent);
     if (IsRectOverlap(rect1, rect)) {
         allComponents.emplace_back(component);
     }
@@ -1171,7 +1160,7 @@ static vector<shared_ptr<Component>> GetComponentsInRange(const On& on,
     }
 
     if (on.isAfter) {
-        for (uint32_t index = allComponents.size() - 1; index >= 0; index--) {
+        for (int index = allComponents.size() - 1; index >= 0; index--) {
             if (*(on.isAfter.get()) == allComponents[index]->GetComponentInfo()) {
                 firstIndex = index + 1;
                 break;
@@ -1182,8 +1171,7 @@ static vector<shared_ptr<Component>> GetComponentsInRange(const On& on,
     for (uint32_t index = firstIndex; index <= lastIndex; index++) {
         componentsInRange.push_back(allComponents[index]);
     }
-    HILOG_DEBUG("GetComponentsInRange end. firstIndex = %d, lastIndex = %d",
-        firstIndex, lastIndex);
+    HILOG_DEBUG("GetComponentsInRange end. firstIndex = %d, lastIndex = %d", firstIndex, lastIndex);
     HILOG_DEBUG("GetComponentsInRange end. allComponents size = %d, componentsInRange size = %d",
         allComponents.size(), componentsInRange.size());
     return componentsInRange;

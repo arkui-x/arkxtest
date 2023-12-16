@@ -162,8 +162,6 @@ public:
 
     void SetComponentInfo(const OHOS::Ace::Platform::ComponentInfo& com);
     OHOS::Ace::Platform::ComponentInfo GetComponentInfo();
-    void SetParentComponent(const shared_ptr<Component> parent);
-    shared_ptr<Component> GetParentComponent();
     unique_ptr<Component> ScrollSearch(const On& on);
     Point GetBoundsCenter();
 private:
