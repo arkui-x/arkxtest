@@ -674,8 +674,8 @@ void Component::InputText(const string& text)
         // ProcessKeyEvent 接口参数: int32_t keyCode, int32_t keyAction, int32_t repeatTime, int64_t timeStamp = 0,
         // int64_t timeStampStart = 0, int32_t metaKey = 0, int32_t sourceDevice = 0, int32_t deviceId = 0
         // int32_t metaKey 参数取值: CTRL = 1,    SHIFT = 2,    ALT = 4,    META = 8,
-        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_V), static_cast<int32_t>(Ace::KeyAction::DOWN), 0, 0, 0, KEY_CTRL);
-        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_V), static_cast<int32_t>(Ace::KeyAction::UP), 0, 0, 0, KEY_CTRL);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_V), static_cast<int32_t>(Ace::KeyAction::DOWN), 0, 0, 0, KEY_CTRL, 0, 0, text);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_V), static_cast<int32_t>(Ace::KeyAction::UP), 0, 0, 0, KEY_CTRL, 0, 0, text);
         driver.DelayMs(DELAY_TIME);
     }
     componentInfo_.text = text;
