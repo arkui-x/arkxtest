@@ -46,9 +46,6 @@ constexpr int32_t KEY_CTRL = 1;
 constexpr int32_t KEY_SHIFT = 2;
 constexpr int32_t KEY_ALT = 4;
 constexpr int32_t KEY_META = 8;
-static bool BEFORE_FLAG = false;
-static bool AFTER_FLAG = false;
-
 
 int32_t Findkeycode(const char ch, int32_t& metaKey, int32_t& keycode)
 {
@@ -674,8 +671,8 @@ void Component::InputText(const string& text)
         // ProcessKeyEvent 接口参数: int32_t keyCode, int32_t keyAction, int32_t repeatTime, int64_t timeStamp = 0,
         // int64_t timeStampStart = 0, int32_t metaKey = 0, int32_t sourceDevice = 0, int32_t deviceId = 0
         // int32_t metaKey 参数取值: CTRL = 1,    SHIFT = 2,    ALT = 4,    META = 8,
-        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_V), static_cast<int32_t>(Ace::KeyAction::DOWN), 0, 0, 0, 1);
-        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_V), static_cast<int32_t>(Ace::KeyAction::UP), 0, 0, 0, 1);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_V), static_cast<int32_t>(Ace::KeyAction::DOWN), 0, 0, 0, KEY_CTRL);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_V), static_cast<int32_t>(Ace::KeyAction::UP), 0, 0, 0, KEY_CTRL);
         driver.DelayMs(DELAY_TIME);
     }
     componentInfo_.text = text;
@@ -1133,65 +1130,78 @@ static void GetAllComponentInfos(OHOS::Ace::Platform::ComponentInfo& componentIn
     HILOG_DEBUG("GetAllComponentInfos end. allComponents.size()=%d", allComponents.size());
 }
 
+static void FindChildComponents(OHOS::Ace::Platform::ComponentInfo& componentInfo,
+    const On& on, vector<shared_ptr<Component>>& childComponents)
+{
+    HILOG_DEBUG("FindChildComponents. childComponents.size()=%d", childComponents.size());
+    if (on == componentInfo) {
+        Rect rect = GetBounds(componentInfo);
+        for (auto &child : componentInfo.children) {
+            GetAllComponentInfos(child, rect, childComponents, nullptr);
+        }
+        return;
+    }
+
+    for (auto &child : componentInfo.children) {
+        FindChildComponents(child, on, childComponents);
+    }
+}
+
 static vector<shared_ptr<Component>> GetComponentsInRange(const On& on,
     vector<shared_ptr<Component>>& allComponents)
 {
     HILOG_DEBUG("GetComponentsInRange begin.");
-    int firstIndex = 0;
-    int lastIndex = allComponents.size() - 1;
-    auto sptIsBf = on.isBefore.lock();
-    if (sptIsBf) {
-        for (int index = 0; index < allComponents.size(); index++) {
-            if (*sptIsBf == allComponents[index]->GetComponentInfo()) {
-                lastIndex = index - 1;
+    vector<shared_ptr<Component>> componentsInRange;
+    if (allComponents.size() == 0) {
+        HILOG_DEBUG("allComponents size = 0.");
+        return componentsInRange;
+    }
+    uint32_t firstIndex = 0;
+    uint32_t lastIndex = allComponents.size() - 1;
+    if (on.isBefore) {
+        for (uint32_t index = 0; index < allComponents.size(); index++) {
+            if (*(on.isBefore.get()) == allComponents[index]->GetComponentInfo()) {
+                if (index == 0) {
+                    return componentsInRange;
+                }
+                lastIndex = index;
                 break;
             }
         }
     }
-    auto sptIsAf = on.isAfter.lock();
-    if (sptIsAf) {
-        for (int index = allComponents.size() - 1; index >= 0; index--) {
-            if (*sptIsAf == allComponents[index]->GetComponentInfo()) {
+
+    if (on.isAfter) {
+        for (uint32_t index = allComponents.size() - 1; index >= 0; index--) {
+            if (*(on.isAfter.get()) == allComponents[index]->GetComponentInfo()) {
                 firstIndex = index + 1;
                 break;
             }
         }
     }
-    vector<shared_ptr<Component>> componentsInRange;
-    for(int index = firstIndex; index <= lastIndex; index++){
+
+    for (uint32_t index = firstIndex; index <= lastIndex; index++) {
         componentsInRange.push_back(allComponents[index]);
     }
-    HILOG_DEBUG("GetComponentsInRange end. Rest size of componentsInRange is = %d",
-        componentsInRange.size());
+    HILOG_DEBUG("GetComponentsInRange end. firstIndex = %d, lastIndex = %d",
+        firstIndex, lastIndex);
+    HILOG_DEBUG("GetComponentsInRange end. allComponents size = %d, componentsInRange size = %d",
+        allComponents.size(), componentsInRange.size());
     return componentsInRange;
-}
-
-bool IsWithInComponent(const On& on, shared_ptr<Component>& component)
-{
-    HILOG_DEBUG("IsWithInComponent begin.");
-    shared_ptr<Component> parentComponent = component->GetParentComponent();
-    auto sptWithIn = on.withIn.lock();
-    if (parentComponent != nullptr && sptWithIn != nullptr) {
-        if(*sptWithIn == parentComponent->GetComponentInfo()) {
-            return true;
-        }
-    }
-    HILOG_DEBUG("IsWithInComponent end.");
-    return false;
 }
 
 unique_ptr<Component> GetComponentvalue(const On& on,
     vector<shared_ptr<Component>>& componentsInRange)
-{    
+{
     HILOG_DEBUG("GetComponentvalue begin.");
-    for (int index=0; index < componentsInRange.size(); index++) {
+    if (componentsInRange.size() == 0) {
+        HILOG_DEBUG("componentsInRange size = 0.");
+        return nullptr;
+    }
+    for (int index = 0; index < componentsInRange.size(); index++) {
         if (on == componentsInRange[index]->GetComponentInfo()) {
             HILOG_DEBUG("Component found.");
             auto component = make_unique<Component>();
             component->SetComponentInfo(componentsInRange[index]->GetComponentInfo());
-            if (IsWithInComponent(on,componentsInRange[index])) {
-                component->SetParentComponent(componentsInRange[index]->GetParentComponent());
-            }
             return component;
         }
     }
@@ -1207,26 +1217,28 @@ unique_ptr<Component> Driver::FindComponent(const On& on)
     auto uiContent = GetUIContent();
     CHECK_NULL_RETURN(uiContent, nullptr);
     uiContent->GetAllComponents(0, info);
-    Rect infoRect = GetBounds(info);
-    HILOG_DEBUG("GetAllComponents ok");
     vector<shared_ptr<Component>> allComponents;
-    GetAllComponentInfos(info, infoRect, allComponents, nullptr);
+    Rect infoRect = GetBounds(info);
+    if (on.withIn) {
+        On onWithIn = *(on.withIn.get());
+        FindChildComponents(info, onWithIn, allComponents);
+    } else {
+        GetAllComponentInfos(info, infoRect, allComponents, nullptr);
+    }
+    HILOG_DEBUG("GetAllComponents ok, size = %d", allComponents.size());
     vector<shared_ptr<Component>> componentsInRange = GetComponentsInRange(on, allComponents);
     return GetComponentvalue(on, componentsInRange);
 }
 
 void GetComponentvalues(const On& on, vector<shared_ptr<Component>> &componentsInRange,
     vector<unique_ptr<Component>>& components)
-{  
+{
     HILOG_DEBUG("GetComponentvalues begin.");
     for(int index = 0; index < componentsInRange.size(); index++){
         if (on == componentsInRange[index]->GetComponentInfo()) {
             HILOG_DEBUG("Component found.");
             auto component = make_unique<Component>();
             component->SetComponentInfo(componentsInRange[index]->GetComponentInfo());
-            if (IsWithInComponent(on, componentsInRange[index])) {
-                component->SetParentComponent(componentsInRange[index]->GetParentComponent());
-            }
             components.push_back(move(component));
         }
     }
@@ -1242,7 +1254,12 @@ vector<unique_ptr<Component>> Driver::FindComponents(const On& on)
     uiContent->GetAllComponents(0, info);
     Rect infoRect = GetBounds(info);
     vector<shared_ptr<Component>> allComponents;
-    GetAllComponentInfos(info, infoRect, allComponents, nullptr);
+    if (on.withIn) {
+        On onWithIn = *(on.withIn.get());
+        FindChildComponents(info, onWithIn, allComponents);
+    } else {
+        GetAllComponentInfos(info, infoRect, allComponents, nullptr);
+    }
     vector<shared_ptr<Component>> componentsInRange = GetComponentsInRange(on, allComponents);
     GetComponentvalues(on, componentsInRange, components);
     HILOG_DEBUG("Driver::FindComponents end");

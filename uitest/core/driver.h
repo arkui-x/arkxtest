@@ -124,9 +124,9 @@ public:
     shared_ptr<bool> selected;
     shared_ptr<bool> checked;
     shared_ptr<bool> checkable;
-    weak_ptr<On> isBefore;
-    weak_ptr<On> isAfter;
-    weak_ptr<On> withIn;
+    shared_ptr<On> isBefore;
+    shared_ptr<On> isAfter;
+    shared_ptr<On> withIn;
     MatchPattern pattern_ = MatchPattern::EQUALS;
 
     bool CompareText(const string& text) const;
@@ -166,7 +166,6 @@ public:
     shared_ptr<Component> GetParentComponent();
     unique_ptr<Component> ScrollSearch(const On& on);
     Point GetBoundsCenter();
-
 private:
     OHOS::Ace::Platform::ComponentInfo componentInfo_;
     shared_ptr<Component> parentComponent_;
