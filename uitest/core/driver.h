@@ -71,10 +71,10 @@ right 控件边框的右下角的X坐标。
 bottom 控件边框的右下角的Y坐标。
 */
 struct Rect {
-    float left = 0.0f;
-    float top = 0.0f;
-    float right = 0.0f;
-    float bottom = 0.0f;
+    int left;
+    int top;
+    int right;
+    int bottom;
 };
 
 /**

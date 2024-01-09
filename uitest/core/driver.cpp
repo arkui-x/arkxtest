@@ -804,6 +804,8 @@ Rect Component::GetBounds()
     rect.right = componentInfo_.left + componentInfo_.width;
     rect.top = componentInfo_.top;
     rect.bottom = componentInfo_.top + componentInfo_.height;
+    HILOG_DEBUG("Component::GetBounds left:%d right%d top:%d bottom:%d", rect.left,
+        rect.right, rect.top, rect.bottom);
     return rect;
 }
 
