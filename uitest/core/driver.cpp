@@ -813,7 +813,8 @@ void Component::PinchOut(float scale)
 {
     HILOG_DEBUG("Component::PinchOut");
     if (scale <= 1.0f) {
-        HILOG_DEBUG("Component::PinchOut scale[%f] <= 1.0f", scale);
+        HILOG_DEBUG("Component::PinchOut scale[%f] <= 1.0f, goto PinchIn", scale);
+        PinchIn(scale);
         return;
     }
     float scaleOpt = scale - 1.0;
@@ -854,8 +855,13 @@ void Component::PinchOut(float scale)
 void Component::PinchIn(float scale)
 {
     HILOG_DEBUG("Component::PinchIn");
-    if (scale >= 1.0f || scale <= 0.001f) {
+    if (scale <= 0.001f) {
         HILOG_DEBUG("Component::PinchIn scale[%f] invalid", scale);
+        return;
+    }
+    if (scale > 1.0f) {
+        HILOG_DEBUG("Component::PinchIn scale[%f] > 1.0f, goto PinchOut", scale);
+        PinchOut(scale);
         return;
     }
     Rect rect = GetBounds();
