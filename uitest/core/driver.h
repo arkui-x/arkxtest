@@ -204,12 +204,7 @@ public:
     uint32_t GetSteps() const;
     uint32_t GetFingers() const;
     // finger, (step, point)
-    struct CmpByKeyNumber {
-        bool operator()(const int& k1, const int& k2) const {
-            return k1 < k2;
-        }
-    };
-    std::map<int, std::vector<Point>, CmpByKeyNumber> fingerPointMap_;
+    std::map<int, std::map<int, Point>> fingerPointMap_;
 private:
     uint32_t fingerNum_ = 0;
     uint32_t stepNum_ = 0;

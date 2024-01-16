@@ -256,13 +256,13 @@ bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed)
     // speed will add later
     std::vector<Ace::TouchEvent> injectEvents;
     int64_t curTimeMillis = getCurrentTimeMillis();
-    for (auto it : pointers.fingerPointMap_) {
+    for (auto&& it : pointers.fingerPointMap_) {
         Ace::TouchEvent downEvent;
         downEvent.id = it.first;
         if (it.second.size() == 0) {
             return false;
         }
-        PackagingEvent(downEvent, TimeStamp(curTimeMillis), Ace::TouchType::DOWN, it.second[0]);
+        PackagingEvent(downEvent, TimeStamp(curTimeMillis), Ace::TouchType::DOWN, it.second.begin()->second);
         injectEvents.push_back(downEvent);
     }
     auto it2 = pointers.fingerPointMap_.begin();
@@ -270,19 +270,22 @@ bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed)
     if (size2 <= 1) {
         return false;
     }
-    for (int i = 1; i < size2; i++) {
-        for (auto it : pointers.fingerPointMap_) {
+    for (auto&& it : pointers.fingerPointMap_) {
+        auto start = it.second.begin();
+        auto end = it.second.end();
+        int i = 0;
+        for (auto iter = start; iter != end; iter++) {
             Ace::TouchEvent moveEvent;
             moveEvent.id = it.first;
-            PackagingEvent(moveEvent, TimeStamp(curTimeMillis + DELAY_TIME * i), Ace::TouchType::MOVE, it.second[i]);
+            PackagingEvent(moveEvent, TimeStamp(curTimeMillis + DELAY_TIME * i), Ace::TouchType::MOVE, iter->second);
             injectEvents.push_back(moveEvent);
+            i++;
         }
     }
-    for (auto it : pointers.fingerPointMap_) {
+    for (auto&& it : pointers.fingerPointMap_) {
         Ace::TouchEvent upEvent;
         upEvent.id = it.first;
-        int size = it.second.size();
-        PackagingEvent(upEvent, TimeStamp(curTimeMillis + DELAY_TIME * steps), Ace::TouchType::UP, it.second[size - 1]);
+        PackagingEvent(upEvent, TimeStamp(curTimeMillis + DELAY_TIME * steps), Ace::TouchType::UP, it.second.rbegin()->second);
         injectEvents.push_back(upEvent);
     }
 
@@ -1322,9 +1325,9 @@ void PointerMatrix::SetPoint(uint32_t finger, uint32_t step, Point& point)
 {
     if (finger < this->fingerNum_) {
         if (step < this->stepNum_) {
-            vector<Point>& pointVec = this->fingerPointMap_[finger];
+            map<int, Point>& pointMap = this->fingerPointMap_[finger];
             Point pointTmp = point;
-            pointVec.push_back(pointTmp);
+            pointMap[step] = pointTmp;
         }
     }
 }
