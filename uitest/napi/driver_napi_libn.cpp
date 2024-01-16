@@ -1044,8 +1044,8 @@ napi_value ComponentNExporter::GetBounds(napi_env env, napi_callback_info info)
         }
         NVal obj = NVal::CreateObject(env);
         obj.AddProp("left", NVal::CreateInt32(env, rect.left).val_);
-        obj.AddProp("right", NVal::CreateInt32(env, rect.right).val_);
         obj.AddProp("top", NVal::CreateInt32(env, rect.top).val_);
+        obj.AddProp("right", NVal::CreateInt32(env, rect.right).val_);
         obj.AddProp("bottom", NVal::CreateInt32(env, rect.bottom).val_);
         return { obj };
     };
