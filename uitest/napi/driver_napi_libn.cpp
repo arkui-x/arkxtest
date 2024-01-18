@@ -1999,19 +1999,6 @@ PointerMatrixNExporter::PointerMatrixNExporter(napi_env env, napi_value exports)
 
 PointerMatrixNExporter::~PointerMatrixNExporter() {}
 
-static napi_value InstantiateMatrix(napi_env env, napi_value thisVar)
-{
-    napi_value pmVal = nullptr;
-    napi_get_reference_value(env, PmRef, &pmVal);
-    bool result;
-    napi_strict_equals(env, pmVal, thisVar, &result);
-    if (result) {
-        HILOG_DEBUG("Uitest:: PointerMatrix addr equals.");
-        thisVar = NClass::InstantiateClass(env, PointerMatrixNExporter::POINTER_MATRIX_CLASS_NAME, {});
-    }
-    return thisVar;
-}
-
 napi_value PointerMatrixNExporter::Create(napi_env env, napi_callback_info info)
 {
     HILOG_DEBUG("PointerMatrixNExporter::Create begin");

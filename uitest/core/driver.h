@@ -202,7 +202,6 @@ public:
     void SetPoint(uint32_t finger, uint32_t step, Point& point);
     PointerMatrix& operator=(PointerMatrix&& other);
     uint32_t GetSteps() const;
-    uint32_t GetFingers() const;
     // finger, (step, point)
     std::map<int, std::map<int, Point>> fingerPointMap_;
 private:

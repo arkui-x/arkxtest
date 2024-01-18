@@ -1407,9 +1407,4 @@ uint32_t PointerMatrix::GetSteps() const
     return this->stepNum_;
 }
 
-uint32_t PointerMatrix::GetFingers() const
-{
-    return this->fingerNum_;
-}
-
 } // namespace OHOS::UiTest
