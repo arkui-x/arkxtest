@@ -23,6 +23,8 @@ using namespace std;
 using namespace LibN;
 static napi_ref OnRef = nullptr;
 static napi_ref PmRef = nullptr;
+static constexpr const int32_t MAX_FINGERS = 10;
+static constexpr const int32_t MAX_STEPS = 1000;
 
 class ArgsCls {
 public:
@@ -1042,8 +1044,8 @@ napi_value ComponentNExporter::GetBounds(napi_env env, napi_callback_info info)
         }
         NVal obj = NVal::CreateObject(env);
         obj.AddProp("left", NVal::CreateInt32(env, rect.left).val_);
-        obj.AddProp("right", NVal::CreateInt32(env, rect.right).val_);
         obj.AddProp("top", NVal::CreateInt32(env, rect.top).val_);
+        obj.AddProp("right", NVal::CreateInt32(env, rect.right).val_);
         obj.AddProp("bottom", NVal::CreateInt32(env, rect.bottom).val_);
         return { obj };
     };
@@ -2021,6 +2023,19 @@ napi_value PointerMatrixNExporter::Create(napi_env env, napi_callback_info info)
     auto [resGetSecondArg, steps] = NVal(env, funcArg[NARG_POS::SECOND]).ToInt32();
     if (!resGetSecondArg) {
         HILOG_ERROR("PointerMatrixNExporter::Create Invalid steps");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
+    }
+
+    // fingers  number  是  多指操作中注入的手指数，取值范围：[1,10].
+    // steps    number  是  每根手指操作的步骤数，取值范围：[1,1000].
+    if (fingers < 1 || fingers > MAX_FINGERS) {
+        HILOG_ERROR("PointerMatrixNExporter::Create Invalid value. fingers[%d]", fingers);
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
+    }
+    if (steps < 1 || steps > MAX_STEPS) {
+        HILOG_ERROR("PointerMatrixNExporter::Create Invalid value. steps[%d]", steps);
         NError(E_PARAMS).ThrowErr(env);
         return nullptr;
     }

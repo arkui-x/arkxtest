@@ -71,10 +71,10 @@ right 控件边框的右下角的X坐标。
 bottom 控件边框的右下角的Y坐标。
 */
 struct Rect {
-    float left = 0.0f;
-    float top = 0.0f;
-    float right = 0.0f;
-    float bottom = 0.0f;
+    int left;
+    int top;
+    int right;
+    int bottom;
 };
 
 /**
@@ -124,9 +124,9 @@ public:
     shared_ptr<bool> selected;
     shared_ptr<bool> checked;
     shared_ptr<bool> checkable;
-    weak_ptr<On> isBefore;
-    weak_ptr<On> isAfter;
-    weak_ptr<On> withIn;
+    shared_ptr<On> isBefore;
+    shared_ptr<On> isAfter;
+    shared_ptr<On> withIn;
     MatchPattern pattern_ = MatchPattern::EQUALS;
 
     bool CompareText(const string& text) const;
@@ -162,11 +162,8 @@ public:
 
     void SetComponentInfo(const OHOS::Ace::Platform::ComponentInfo& com);
     OHOS::Ace::Platform::ComponentInfo GetComponentInfo();
-    void SetParentComponent(const shared_ptr<Component> parent);
-    shared_ptr<Component> GetParentComponent();
     unique_ptr<Component> ScrollSearch(const On& on);
     Point GetBoundsCenter();
-
 private:
     OHOS::Ace::Platform::ComponentInfo componentInfo_;
     shared_ptr<Component> parentComponent_;
@@ -206,9 +203,8 @@ public:
     PointerMatrix& operator=(PointerMatrix&& other);
     uint32_t GetSteps() const;
     uint32_t GetFingers() const;
-    std::map<int, std::vector<Point>> GetPointMap() const;
     // finger, (step, point)
-    std::map<int, std::vector<Point>> fingerPointMap_;
+    std::map<int, std::map<int, Point>> fingerPointMap_;
 private:
     uint32_t fingerNum_ = 0;
     uint32_t stepNum_ = 0;
