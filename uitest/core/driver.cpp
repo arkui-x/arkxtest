@@ -18,6 +18,7 @@
 #include <future>
 #include <vector>
 #include <math.h>
+#include <chrono>
 #include "ability_delegator/ability_delegator_registry.h"
 #include "accessibility_node.h"
 #include "core/event/key_event.h"
@@ -111,8 +112,11 @@ Ace::Platform::UIContent* GetUIContent()
     return delegator->GetUIContent(topAbility->instanceId_);
 }
 
-static void PackagingEvent(Ace::TouchEvent& event, Ace::TimeStamp time, Ace::TouchType type, const Point& point)
+static void PackagingEvent(Ace::TouchEvent& event, Ace::TimeStamp time, Ace::TouchType type, const Point& point, int id = -1)
 {
+    if (id >= 0) {
+        event.id = id;
+    }
     event.time = time;
     event.type = type;
     event.x = point.x;
@@ -246,24 +250,47 @@ void Driver::TriggerCombineKeys(int key0, int key1, int key2)
     driver.DelayMs(DELAY_TIME);
 }
 
+static bool CompareTouchEventTimeStamp(Ace::TouchEvent &event1, Ace::TouchEvent &event2)
+{
+    int64_t timeValue1 = std::chrono::duration_cast<std::chrono::nanoseconds>(event1.time.time_since_epoch()).count();
+    int64_t timeValue2 = std::chrono::duration_cast<std::chrono::nanoseconds>(event2.time.time_since_epoch()).count();
+    if (timeValue1 > timeValue2) {
+        return false;
+    }
+    else if (timeValue1 < timeValue2) {
+        return true;
+    }
+    else {
+        return event1.id < event2.id;
+    }
+}
+
 bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed)
 {
+    HILOG_DEBUG("Driver::InjectMultiPointerAction begin. ");
     uint32_t steps = pointers.GetSteps();
     if (steps <= 1) {
         HILOG_ERROR("Driver::InjectMultiPointerAction no move.");
         return false;
     }
-    // speed will add later
+    UiOpArgs options;
+    uint32_t actionSpeed = speed;
+    if (speed < options.minSwipeVelocityPps_ || speed > options.maxSwipeVelocityPps_) {
+        actionSpeed = options.defaultVelocityPps_;
+    }
+
     std::vector<Ace::TouchEvent> injectEvents;
+    std::vector<int64_t> multiPointerActionEndTimeMillis;
+    std::vector<int64_t> multiPointerActionHoldTimeMillis;
     int64_t curTimeMillis = getCurrentTimeMillis();
     for (auto&& it : pointers.fingerPointMap_) {
-        Ace::TouchEvent downEvent;
-        downEvent.id = it.first;
         if (it.second.size() == 0) {
             return false;
         }
-        PackagingEvent(downEvent, TimeStamp(curTimeMillis), Ace::TouchType::DOWN, it.second.begin()->second);
+        Ace::TouchEvent downEvent;
+        PackagingEvent(downEvent, TimeStamp(curTimeMillis), Ace::TouchType::DOWN, it.second.begin()->second, it.first);
         injectEvents.push_back(downEvent);
+        multiPointerActionHoldTimeMillis.push_back(0);
     }
     auto it2 = pointers.fingerPointMap_.begin();
     int size2 = it2->second.size();
@@ -273,26 +300,61 @@ bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed)
     for (auto&& it : pointers.fingerPointMap_) {
         auto start = it.second.begin();
         auto end = it.second.end();
-        int i = 0;
+        int64_t endTimeMillis = curTimeMillis;
+        Point pointTmp {-1, -1};
         for (auto iter = start; iter != end; iter++) {
-            Ace::TouchEvent moveEvent;
-            moveEvent.id = it.first;
-            PackagingEvent(moveEvent, TimeStamp(curTimeMillis + DELAY_TIME * i), Ace::TouchType::MOVE, iter->second);
-            injectEvents.push_back(moveEvent);
-            i++;
+            if (iter == start) {
+                pointTmp = iter->second; // first run value
+            }
+            
+            int startX = pointTmp.x;
+            int endX = iter->second.x;
+            int startY = pointTmp.y;
+            int endY = iter->second.y;
+            const int distanceX = endX - startX;
+            const int distanceY = endY - startY;
+            const int distance = sqrt(distanceX * distanceX + distanceY * distanceY);
+            const uint32_t timeCostMs = (uint32_t)((distance * 1000) / actionSpeed);
+            if (distance < 1) {
+                HILOG_DEBUG("Driver::InjectMultiPointerAction this step ignored. distance value is illegal");
+                continue;
+            }
+
+            const uint16_t steps = options.swipeStepsCounts_;
+            const uint32_t timeUnitMs = timeCostMs / steps;
+            for (uint16_t step = 1; step <= steps; step++) {
+                const float pointX = startX + (distanceX * step) / steps;
+                const float pointY = startY + (distanceY * step) / steps;
+                const uint32_t timeOffsetMs = timeUnitMs * (step - 1);
+                Ace::TouchEvent moveEvent;
+                PackagingEvent(moveEvent, TimeStamp(endTimeMillis + timeOffsetMs), Ace::TouchType::MOVE, {pointX, pointY}, it.first);
+                injectEvents.push_back(moveEvent);
+                multiPointerActionHoldTimeMillis.push_back(timeUnitMs);
+            }
+            endTimeMillis += timeCostMs;
+            pointTmp = iter->second; // next run value
         }
+        multiPointerActionEndTimeMillis.push_back(endTimeMillis);
     }
     for (auto&& it : pointers.fingerPointMap_) {
         Ace::TouchEvent upEvent;
-        upEvent.id = it.first;
-        PackagingEvent(upEvent, TimeStamp(curTimeMillis + DELAY_TIME * steps), Ace::TouchType::UP, it.second.rbegin()->second);
+        PackagingEvent(upEvent, TimeStamp(multiPointerActionEndTimeMillis[it.first]), Ace::TouchType::UP, it.second.rbegin()->second, it.first);
         injectEvents.push_back(upEvent);
     }
-
-    auto uiContent = GetUIContent();
-    CHECK_NULL_RETURN(uiContent, false);
-    uiContent->ProcessBasicEvent(injectEvents);
-
+    std::sort(injectEvents.begin(), injectEvents.end(), CompareTouchEventTimeStamp);
+    for (int eventIndex = 0; eventIndex < injectEvents.size(); eventIndex++) {
+        auto multiPointerActionEvent = injectEvents[eventIndex];
+        auto uiContent = GetUIContent();
+        CHECK_NULL_RETURN(uiContent, false);
+        std::vector<Ace::TouchEvent> touchEvents;
+        touchEvents.push_back(multiPointerActionEvent);
+        uiContent->ProcessBasicEvent(touchEvents);
+        touchEvents.clear();
+        if (multiPointerActionHoldTimeMillis[eventIndex] > 0) {
+            DelayMs(multiPointerActionHoldTimeMillis[eventIndex]);
+        }
+    }
+    HILOG_DEBUG("Driver::InjectMultiPointerAction end. ");
     return true;
 }
 
