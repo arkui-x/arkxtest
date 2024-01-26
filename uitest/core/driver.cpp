@@ -112,11 +112,9 @@ Ace::Platform::UIContent* GetUIContent()
     return delegator->GetUIContent(topAbility->instanceId_);
 }
 
-static void PackagingEvent(Ace::TouchEvent& event, Ace::TimeStamp time, Ace::TouchType type, const Point& point, int id = -1)
-{
-    if (id >= 0) {
-        event.id = id;
-    }
+static void PackagingEvent(Ace::TouchEvent& event, Ace::TimeStamp time, Ace::TouchType type, const Point& point, int id = 0)
+
+    event.id = id;
     event.time = time;
     event.type = type;
     event.x = point.x;
