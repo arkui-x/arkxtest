@@ -113,7 +113,7 @@ Ace::Platform::UIContent* GetUIContent()
 }
 
 static void PackagingEvent(Ace::TouchEvent& event, Ace::TimeStamp time, Ace::TouchType type, const Point& point, int id = 0)
-
+{
     event.id = id;
     event.time = time;
     event.type = type;
