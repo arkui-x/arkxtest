@@ -638,7 +638,7 @@ string Component::GetId()
 
 string Component::GetText()
 {
-    HILOG_DEBUG("Component::GetText");
+    HILOG_DEBUG("Component::GetText %{public}s", componentInfo_.text.c_str());
     return componentInfo_.text;
 }
 
@@ -716,6 +716,7 @@ void Component::InputText(const string& text)
 {
     HILOG_DEBUG("Component::InputText");
     ClearText();
+    Click();
     if (text.empty()) {
         return;
     }
@@ -738,7 +739,9 @@ void Component::InputText(const string& text)
         uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_V), static_cast<int32_t>(Ace::KeyAction::UP), 0, 0, 0, KEY_CTRL, 0, 0, text);
         driver.DelayMs(DELAY_TIME);
     }
+    // Ace::KeyCode::KEY_ENTER 2054 回车键
     componentInfo_.text = text;
+    driver.TriggerKey(static_cast<int32_t>(Ace::KeyCode::KEY_ENTER));
 }
 
 void Component::ClearText()
@@ -756,6 +759,7 @@ void Component::ClearText()
         driver.DelayMs(DELAY_TIME);
     }
     componentInfo_.text.clear();
+    driver.TriggerKey(static_cast<int32_t>(Ace::KeyCode::KEY_ENTER));
 }
 
 void Component::ScrollToTop(int speed)
