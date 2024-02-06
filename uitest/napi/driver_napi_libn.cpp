@@ -565,17 +565,20 @@ napi_value ComponentNExporter::GetText(napi_env env, napi_callback_info info)
         return nullptr;
     }
 
-    string text = "";
-    auto cbExec = [&text, component]() -> NError {
+    static string text = "";
+    auto cbExec = [component]() -> NError {
         text = component->GetText();
+        HILOG_DEBUG("ComponentNExporter::GetText 1 %{public}s", text.c_str());
         return NError(ERRNO_NOERR);
     };
 
-    auto cbCompl = [&text](napi_env env, NError err) -> NVal {
+    auto cbCompl = [](napi_env env, NError err) -> NVal {
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
-        return NVal::CreateUTF8String(env, text);
+        HILOG_DEBUG("ComponentNExporter::GetText 2 %{public}s", text.c_str());
+        NVal obj = NVal::CreateUTF8String(env, text);
+        return { obj };
     };
 
     NVal thisVar(env, funcArg.GetThisVar());
@@ -1032,13 +1035,13 @@ napi_value ComponentNExporter::GetBounds(napi_env env, napi_callback_info info)
         return nullptr;
     }
 
-    Rect rect;
-    auto cbExec = [&rect, component]() -> NError {
+    static Rect rect;
+    auto cbExec = [component]() -> NError {
         rect = component->GetBounds();
         return NError(ERRNO_NOERR);
     };
 
-    auto cbCompl = [&rect](napi_env env, NError err) -> NVal {
+    auto cbCompl = [](napi_env env, NError err) -> NVal {
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
@@ -1047,6 +1050,8 @@ napi_value ComponentNExporter::GetBounds(napi_env env, napi_callback_info info)
         obj.AddProp("top", NVal::CreateInt32(env, rect.top).val_);
         obj.AddProp("right", NVal::CreateInt32(env, rect.right).val_);
         obj.AddProp("bottom", NVal::CreateInt32(env, rect.bottom).val_);
+        HILOG_DEBUG("ComponentNExporter::GetBounds %{public}d, %{public}d, %{public}d, %{public}d",
+            rect.left, rect.top, rect.right, rect.bottom);
         return { obj };
     };
 
@@ -1403,13 +1408,13 @@ napi_value DriverNExporter::InjectMultiPointerAction(napi_env env, napi_callback
         }
         speed = number;
     }
-    bool ret = false;
-    auto cbExec = [&ret, driver, poMatrix, sp = speed]() -> NError {
+    static bool ret = false;
+    auto cbExec = [driver, poMatrix, sp = speed]() -> NError {
         ret = driver->InjectMultiPointerAction(*poMatrix, sp);
         return NError(ERRNO_NOERR);
     };
 
-    auto cbCompl = [&ret](napi_env env, NError err) -> NVal {
+    auto cbCompl = [](napi_env env, NError err) -> NVal {
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
