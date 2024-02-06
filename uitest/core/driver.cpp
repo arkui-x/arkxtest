@@ -716,7 +716,6 @@ void Component::InputText(const string& text)
 {
     HILOG_DEBUG("Component::InputText");
     ClearText();
-    Click();
     if (text.empty()) {
         return;
     }
@@ -759,7 +758,6 @@ void Component::ClearText()
         driver.DelayMs(DELAY_TIME);
     }
     componentInfo_.text.clear();
-    driver.TriggerKey(static_cast<int32_t>(Ace::KeyCode::KEY_ENTER));
 }
 
 void Component::ScrollToTop(int speed)
