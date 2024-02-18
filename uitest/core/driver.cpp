@@ -348,7 +348,7 @@ bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed)
         touchEvents.push_back(multiPointerActionEvent);
         uiContent->ProcessBasicEvent(touchEvents);
         touchEvents.clear();
-        if (multiPointerActionHoldTimeMillis[eventIndex] > 0) {
+        if (multiPointerActionHoldTimeMillis.size() - 1 > eventIndex) {
             DelayMs(multiPointerActionHoldTimeMillis[eventIndex]);
         }
     }
@@ -869,8 +869,8 @@ Rect Component::GetBounds()
     rect.right = componentInfo_.left + componentInfo_.width;
     rect.top = componentInfo_.top;
     rect.bottom = componentInfo_.top + componentInfo_.height;
-    HILOG_DEBUG("Component::GetBounds left:%d right%d top:%d bottom:%d", rect.left,
-        rect.right, rect.top, rect.bottom);
+    HILOG_DEBUG("Component::GetBounds left:%d top:%d right%d bottom:%d", rect.left,
+        rect.top, rect.right, rect.bottom);
     return rect;
 }
 
@@ -960,7 +960,7 @@ void Component::PinchIn(float scale)
     componentInfo_.height = componentInfo_.height * scale;
     componentInfo_.left = center.x - componentInfo_.width / 2;
     componentInfo_.top = center.y - componentInfo_.height / 2;
-    HILOG_DEBUG("Component::PinchOut left:%f top:%f width:%f height:%f  x:%d  y:%d",
+    HILOG_DEBUG("Component::PinchIn left:%f top:%f width:%f height:%f  x:%d  y:%d",
         componentInfo_.left, componentInfo_.top, componentInfo_.width, componentInfo_.height,
         center.x, center.y);
 }
