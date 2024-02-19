@@ -1920,6 +1920,10 @@ napi_value DriverNExporter::FindComponents(napi_env env, napi_callback_info info
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
+        if (args->components.size() == 0) {
+            HILOG_DEBUG("FindComponents end,but null !");
+            return NVal::CreateUndefined(env);
+        }
         HILOG_DEBUG("FindComponents Success!");
         return NVal::CreateArray(env, move(args->components), ComponentNExporter::COMPONENT_CLASS_NAME);
     };
