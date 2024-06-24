@@ -207,6 +207,8 @@ static napi_value OnTemplate(napi_env env, napi_callback_info info, int32_t type
         case CommonType::CHECKABLE:
             b_ = false;
             break;
+        default:
+            break;
     }
     if (funcArg.GetArgc() == NARG_CNT::ONE) {
         auto [succ, b] = NVal(env, funcArg[NARG_POS::FIRST]).ToBool();
@@ -283,29 +285,28 @@ static napi_value RelativeOnTemplate(napi_env env, napi_callback_info info, int3
         HILOG_ERROR("Cannot get entity of on");
         return nullptr;
     }
-    switch (type)
-    {
-    case CommonType::ISBEFORE:
-        if (!on->IsBefore(relativeOn)) {
-            HILOG_ERROR("Cannot put attributions to on");
-            return nullptr;
-        }
-        break;
-    case CommonType::ISAFTER:
-        if (!on->IsAfter(relativeOn)) {
-            HILOG_ERROR("Cannot put attributions to on");
-            return nullptr;
-        }
-        break;
-    case CommonType::WITHIN:
-        if (!on->WithIn(relativeOn)) {
-            HILOG_ERROR("Cannot put attributions to on");
-            return nullptr;
-        }
-        break;
-    default:
-        HILOG_ERROR("Cannot read type of RelativeOn");
-        break;
+    switch (type) {
+        case CommonType::ISBEFORE:
+            if (!on->IsBefore(relativeOn)) {
+                HILOG_ERROR("Cannot put attributions to on");
+                return nullptr;
+            }
+            break;
+        case CommonType::ISAFTER:
+            if (!on->IsAfter(relativeOn)) {
+                HILOG_ERROR("Cannot put attributions to on");
+                return nullptr;
+            }
+            break;
+        case CommonType::WITHIN:
+            if (!on->WithIn(relativeOn)) {
+                HILOG_ERROR("Cannot put attributions to on");
+                return nullptr;
+            }
+            break;
+        default:
+            HILOG_ERROR("Cannot read type of RelativeOn");
+            break;
     }
     HILOG_DEBUG("Uitest:: RelativeOnTemplate end.");
     return thisVar;
@@ -530,16 +531,18 @@ napi_value ComponentNExporter::GetId(napi_env env, napi_callback_info info)
         return nullptr;
     }
 
-    string id = "";
-    auto cbExec = [&id, component]() -> NError {
+    static string id = "";
+    auto cbExec = [component]() -> NError {
         id = component->GetId();
+        HILOG_DEBUG("ComponentNExporter::GetId cbExec %{public}s", id.c_str());
         return NError(ERRNO_NOERR);
     };
 
-    auto cbCompl = [&id](napi_env env, NError err) -> NVal {
+    auto cbCompl = [](napi_env env, NError err) -> NVal {
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
+        HILOG_DEBUG("ComponentNExporter::GetId cbCompl %{public}s", id.c_str());
         return NVal::CreateUTF8String(env, id);
     };
 
@@ -603,16 +606,18 @@ napi_value ComponentNExporter::GetType(napi_env env, napi_callback_info info)
         return nullptr;
     }
 
-    string type;
-    auto cbExec = [&type, component]() -> NError {
+    static string type = "";
+    auto cbExec = [component]() -> NError {
         type = component->GetType();
+        HILOG_DEBUG("ComponentNExporter::GetType cbExec %{public}s", type.c_str());
         return NError(ERRNO_NOERR);
     };
 
-    auto cbCompl = [&type](napi_env env, NError err) -> NVal {
+    auto cbCompl = [](napi_env env, NError err) -> NVal {
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
+        HILOG_DEBUG("ComponentNExporter::GetType cbCompl %{public}s", type.c_str());
         return NVal::CreateUTF8String(env, type);
     };
 
@@ -642,6 +647,8 @@ static string ProcedureName(int32_t type)
             return "IsChecked";
         case CommonType::CHECKABLE:
             return "IsCheckable";
+        default:
+            break;
     }
     HILOG_DEBUG("ProcedureName end");
 }
@@ -709,6 +716,7 @@ static napi_value ComponentTemplate(napi_env env, napi_callback_info info, int32
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
+        HILOG_DEBUG("ComponentTemplate res: %{public}d", *(args->isCommonBool));
         return NVal::CreateBool(env, *(args->isCommonBool));
     };
 
@@ -997,19 +1005,21 @@ napi_value ComponentNExporter::GetBoundsCenter(napi_env env, napi_callback_info 
         return nullptr;
     }
 
-    Point point;
-    auto cbExec = [&point, component]() -> NError {
+    static Point point;
+    auto cbExec = [component]() -> NError {
         point = component->GetBoundsCenter();
+        HILOG_DEBUG("ComponentNExporter::GetBoundsCenter cbExec [%{public}d, %{public}d]", point.x, point.y);
         return NError(ERRNO_NOERR);
     };
 
-    auto cbCompl = [&point](napi_env env, NError err) -> NVal {
+    auto cbCompl = [](napi_env env, NError err) -> NVal {
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
         NVal obj = NVal::CreateObject(env);
         obj.AddProp("x", NVal::CreateInt32(env, point.x).val_);
         obj.AddProp("y", NVal::CreateInt32(env, point.y).val_);
+        HILOG_DEBUG("ComponentNExporter::GetBoundsCenter cbCompl [%{public}d, %{public}d]", point.x, point.y);
         return { obj };
     };
 
@@ -1339,7 +1349,7 @@ napi_value DriverNExporter::AssertComponentExist(napi_env env, napi_callback_inf
 static bool GetArg(napi_env env, napi_value thisValue, int number, shared_ptr<ArgsInfo> argsInfo)
 {
     auto [success, number_] = NVal(env, thisValue).ToInt32();
-    if(!success){
+    if (!success) {
         return false;
     }
     switch (number) {
@@ -1970,7 +1980,8 @@ bool DriverNExporter::Export()
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_FLING, DriverNExporter::Fling),
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_TRIGGER_KEY, DriverNExporter::TriggerKey),
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_TRIGGER_COMBINE_KEYS, DriverNExporter::TriggerCombineKeys),
-        NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_INJECT_MULTI_POINTER_ACTION, DriverNExporter::InjectMultiPointerAction),
+        NVal::DeclareNapiFunction(
+            DriverNExporter::FUNCTION_INJECT_MULTI_POINTER_ACTION, DriverNExporter::InjectMultiPointerAction),
     };
     auto [succ, classValue] = NClass::DefineClass(exports_.env_, DriverNExporter::DRIVER_CLASS_NAME, DriverInitializer,
         std::move(props));

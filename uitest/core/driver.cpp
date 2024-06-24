@@ -57,7 +57,7 @@ int32_t Findkeycode(const char ch, int32_t& metaKey, int32_t& keycode)
         return 0;
     }
 
-    if(islower(ch)) {
+    if (islower(ch)) {
         keycode = static_cast<int32_t>(ch - LOWER_A) + static_cast<int32_t>(Ace::KeyCode::KEY_A);
         return 0;
     }
@@ -112,7 +112,8 @@ Ace::Platform::UIContent* GetUIContent()
     return delegator->GetUIContent(topAbility->instanceId_);
 }
 
-static void PackagingEvent(Ace::TouchEvent& event, Ace::TimeStamp time, Ace::TouchType type, const Point& point, int id = 0)
+static void PackagingEvent(
+    Ace::TouchEvent& event, Ace::TimeStamp time, Ace::TouchType type, const Point& point, int id = 0)
 {
     event.id = id;
     event.time = time;
@@ -167,34 +168,33 @@ void Driver::TriggerKey(int keyCode)
 bool IsCombineKey(int key)
 {
     bool flag = false;
-    switch (key)
-    {
-    case static_cast<int32_t>(Ace::KeyCode::KEY_CTRL_LEFT):
-        flag = true;
-        break;
-    case static_cast<int32_t>(Ace::KeyCode::KEY_CTRL_RIGHT):
-        flag = true;
-        break;
-    case static_cast<int32_t>(Ace::KeyCode::KEY_SHIFT_LEFT):
-        flag = true;
-        break;
-    case static_cast<int32_t>(Ace::KeyCode::KEY_SHIFT_RIGHT):
-        flag = true;
-        break;
-    case static_cast<int32_t>(Ace::KeyCode::KEY_ALT_LEFT):
-        flag = true;
-        break;
-    case static_cast<int32_t>(Ace::KeyCode::KEY_ALT_RIGHT):
-        flag = true;
-        break;
-    case static_cast<int32_t>(Ace::KeyCode::KEY_META_LEFT):
-        flag = true;
-        break;
-    case static_cast<int32_t>(Ace::KeyCode::KEY_META_RIGHT):
-        flag = true;
-        break;
-    default:
-        break;
+    switch (key) {
+        case static_cast<int32_t>(Ace::KeyCode::KEY_CTRL_LEFT):
+            flag = true;
+            break;
+        case static_cast<int32_t>(Ace::KeyCode::KEY_CTRL_RIGHT):
+            flag = true;
+            break;
+        case static_cast<int32_t>(Ace::KeyCode::KEY_SHIFT_LEFT):
+            flag = true;
+            break;
+        case static_cast<int32_t>(Ace::KeyCode::KEY_SHIFT_RIGHT):
+            flag = true;
+            break;
+        case static_cast<int32_t>(Ace::KeyCode::KEY_ALT_LEFT):
+            flag = true;
+            break;
+        case static_cast<int32_t>(Ace::KeyCode::KEY_ALT_RIGHT):
+            flag = true;
+            break;
+        case static_cast<int32_t>(Ace::KeyCode::KEY_META_LEFT):
+            flag = true;
+            break;
+        case static_cast<int32_t>(Ace::KeyCode::KEY_META_RIGHT):
+            flag = true;
+            break;
+        default:
+            break;
     }
     return flag;
 }
@@ -254,11 +254,9 @@ static bool CompareTouchEventTimeStamp(Ace::TouchEvent &event1, Ace::TouchEvent 
     int64_t timeValue2 = std::chrono::duration_cast<std::chrono::nanoseconds>(event2.time.time_since_epoch()).count();
     if (timeValue1 > timeValue2) {
         return false;
-    }
-    else if (timeValue1 < timeValue2) {
+    } else if (timeValue1 < timeValue2) {
         return true;
-    }
-    else {
+    } else {
         return event1.id < event2.id;
     }
 }
@@ -280,7 +278,10 @@ bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed)
     std::vector<Ace::TouchEvent> injectEvents;
     std::vector<int64_t> multiPointerActionEndTimeMillis;
     std::vector<int64_t> multiPointerActionHoldTimeMillis;
-    int64_t curTimeMillis = getCurrentTimeMillis();
+    auto now = std::chrono::steady_clock::now();
+    int64_t timeMills = 120000;
+    int64_t curTimeMillis =
+                std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() - timeMills;
     for (auto&& it : pointers.fingerPointMap_) {
         if (it.second.size() == 0) {
             return false;
@@ -319,13 +320,18 @@ bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed)
             }
 
             const uint16_t steps = options.swipeStepsCounts_;
+            if (steps <= 0) {
+                HILOG_ERROR("Driver::InjectMultiPointerAction ignored. steps is illegal");
+                return false;
+            }
             const uint32_t timeUnitMs = timeCostMs / steps;
             for (uint16_t step = 1; step <= steps; step++) {
                 const float pointX = startX + (distanceX * step) / steps;
                 const float pointY = startY + (distanceY * step) / steps;
                 const uint32_t timeOffsetMs = timeUnitMs * (step - 1);
                 Ace::TouchEvent moveEvent;
-                PackagingEvent(moveEvent, TimeStamp(endTimeMillis + timeOffsetMs), Ace::TouchType::MOVE, {pointX, pointY}, it.first);
+                PackagingEvent(moveEvent, TimeStamp(
+                    endTimeMillis + timeOffsetMs), Ace::TouchType::MOVE, {pointX, pointY}, it.first);
                 injectEvents.push_back(moveEvent);
                 multiPointerActionHoldTimeMillis.push_back(timeUnitMs);
             }
@@ -336,7 +342,8 @@ bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed)
     }
     for (auto&& it : pointers.fingerPointMap_) {
         Ace::TouchEvent upEvent;
-        PackagingEvent(upEvent, TimeStamp(multiPointerActionEndTimeMillis[it.first]), Ace::TouchType::UP, it.second.rbegin()->second, it.first);
+        PackagingEvent(upEvent, TimeStamp(multiPointerActionEndTimeMillis[it.first]),
+            Ace::TouchType::UP, it.second.rbegin()->second, it.first);
         injectEvents.push_back(upEvent);
     }
     std::sort(injectEvents.begin(), injectEvents.end(), CompareTouchEventTimeStamp);
@@ -495,7 +502,7 @@ void Driver::Fling(const Point& from, const Point& to, int stepLen, uint32_t spe
     const int distanceY = to.y - from.y;
     const int distance = sqrt(distanceX * distanceX + distanceY * distanceY);
     const uint32_t timeCostMs = (uint32_t)((distance * 1000) / flingSpeed);
-    if (distance < stepLen) {
+    if (distance < stepLen || stepLen <= 0) {
         HILOG_ERROR("Driver::Fling ignored. stepLen is illegal");
         return;
     }
@@ -632,7 +639,7 @@ void Component::LongClick()
 
 string Component::GetId()
 {
-    HILOG_DEBUG("Component::GetId");
+    HILOG_DEBUG("Component::GetId %{public}s", componentInfo_.compid.c_str());
     return componentInfo_.compid;
 }
 
@@ -644,7 +651,7 @@ string Component::GetText()
 
 string Component::GetType()
 {
-    HILOG_DEBUG("Component::GetType");
+    HILOG_DEBUG("Component::GetType %{public}s", componentInfo_.type.c_str());
     return componentInfo_.type;
 }
 
@@ -714,7 +721,7 @@ unique_ptr<bool> Component::IsCheckable()
 
 void Component::InputText(const string& text)
 {
-    HILOG_DEBUG("Component::InputText");
+    HILOG_DEBUG("Component::InputText %{public}s", text.c_str());
     ClearText();
     if (text.empty()) {
         return;
@@ -734,8 +741,10 @@ void Component::InputText(const string& text)
         // ProcessKeyEvent 接口参数: int32_t keyCode, int32_t keyAction, int32_t repeatTime, int64_t timeStamp = 0,
         // int64_t timeStampStart = 0, int32_t metaKey = 0, int32_t sourceDevice = 0, int32_t deviceId = 0
         // int32_t metaKey 参数取值: CTRL = 1,    SHIFT = 2,    ALT = 4,    META = 8,
-        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_V), static_cast<int32_t>(Ace::KeyAction::DOWN), 0, 0, 0, KEY_CTRL, 0, 0, text);
-        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_V), static_cast<int32_t>(Ace::KeyAction::UP), 0, 0, 0, KEY_CTRL, 0, 0, text);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_V),
+            static_cast<int32_t>(Ace::KeyAction::DOWN), 0, 0, 0, KEY_CTRL, 0, 0, text);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_V),
+            static_cast<int32_t>(Ace::KeyAction::UP), 0, 0, 0, KEY_CTRL, 0, 0, text);
         driver.DelayMs(DELAY_TIME);
     }
     // Ace::KeyCode::KEY_ENTER 2054 回车键
@@ -749,12 +758,16 @@ void Component::ClearText()
     auto uiContent = GetUIContent();
     CHECK_NULL_VOID(uiContent);
 
-    uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_MOVE_END), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
-    uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_MOVE_END), static_cast<int32_t>(Ace::KeyAction::UP), 0);
+    uiContent->ProcessKeyEvent(
+        static_cast<int32_t>(Ace::KeyCode::KEY_MOVE_END), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+    uiContent->ProcessKeyEvent(
+        static_cast<int32_t>(Ace::KeyCode::KEY_MOVE_END), static_cast<int32_t>(Ace::KeyAction::UP), 0);
     Driver driver;
     for (uint32_t i = 0; i < componentInfo_.text.length(); i++) {
-        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_DEL), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
-        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_DEL), static_cast<int32_t>(Ace::KeyAction::UP), 0);
+        uiContent->ProcessKeyEvent(
+            static_cast<int32_t>(Ace::KeyCode::KEY_DEL), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+        uiContent->ProcessKeyEvent(
+            static_cast<int32_t>(Ace::KeyCode::KEY_DEL), static_cast<int32_t>(Ace::KeyAction::UP), 0);
         driver.DelayMs(DELAY_TIME);
     }
     componentInfo_.text.clear();
@@ -1082,7 +1095,7 @@ On* On::Checked(bool checked)
 
 On* On::IsBefore(On* on)
 {
-    HILOG_INFO("Driver::IsBefore")
+    HILOG_INFO("Driver::IsBefore");
     this->isBefore = make_shared<On>(*on);
     this->isEnter = true;
     return this;
@@ -1090,7 +1103,7 @@ On* On::IsBefore(On* on)
 
 On* On::IsAfter(On* on)
 {
-    HILOG_INFO("Driver::IsAfter")
+    HILOG_INFO("Driver::IsAfter");
     this->isAfter = make_shared<On>(*on);
     this->isEnter = true;
     return this;
@@ -1098,7 +1111,7 @@ On* On::IsAfter(On* on)
 
 On* On::WithIn(On* on)
 {
-    HILOG_INFO("Driver::WithIn")
+    HILOG_INFO("Driver::WithIn");
     this->withIn = make_shared<On>(*on);
     this->isEnter = true;
     return this;
@@ -1114,7 +1127,7 @@ bool On::CompareText(const string& text) const
         return text.find(*this->text) == 0;
     } else if (this->pattern_ == MatchPattern::ENDS_WITH) {
         auto ret = text.find(*this->text);
-        if ( ret != -1) {
+        if (ret != -1) {
             return (ret == (text.length() - this->text->length()));
         }
     }
@@ -1295,7 +1308,7 @@ void GetComponentvalues(const On& on, vector<shared_ptr<Component>> &componentsI
     vector<unique_ptr<Component>>& components)
 {
     HILOG_DEBUG("GetComponentvalues begin.");
-    for(int index = 0; index < componentsInRange.size(); index++){
+    for (int index = 0; index < componentsInRange.size(); index++) {
         if (on == componentsInRange[index]->GetComponentInfo()) {
             HILOG_DEBUG("Component found.");
             auto component = make_unique<Component>();
@@ -1340,7 +1353,6 @@ unique_ptr<Component> Component::ScrollSearch(const On& on)
         HILOG_ERROR("not find Component");
         return nullptr;
     }
-
     Driver driver;
     auto rootTop = componentInfo_.top;
     auto componentTop = component->GetComponentInfo().top;
@@ -1350,23 +1362,27 @@ unique_ptr<Component> Component::ScrollSearch(const On& on)
         HILOG_ERROR("not find Component, and this component is not scrollable");
         return nullptr;
     }
-
     if (componentTop < rootTop && IsScrollable().get()) {
         auto distance = rootTop - componentTop;
         auto startX = componentInfo_.left + componentInfo_.width / 2;
         auto startY = componentInfo_.top + componentInfo_.height / 2;
         auto stepLen = std::min(distance / 2, componentInfo_.height / 4);
+        if (stepLen < 0) {
+            return nullptr;
+        }
         auto steps = distance / stepLen + 1;
         for (int step = 0; step < steps; step++) {
             driver.Swipe(startX, startY, startX, startY + stepLen, 200);
         }
     }
-
     if (componentBottom > rootBottom && IsScrollable().get()) {
         auto distance = componentBottom - rootBottom;
         auto startX = componentInfo_.left + componentInfo_.width / 2;
         auto startY = componentInfo_.top + componentInfo_.height / 2;
         auto stepLen = std::min(distance / 2, componentInfo_.height / 4);
+        if (stepLen < 0) {
+            return nullptr;
+        }
         auto steps = distance / stepLen + 1;
         for (int step = 0; step < steps; step++) {
             driver.Swipe(startX, startY, startX, startY - stepLen, 200);

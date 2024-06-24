@@ -99,7 +99,8 @@ bool NFuncArg::InitArgs(size_t minArgc, size_t maxArgc)
     return InitArgs([minArgc, maxArgc, this]() {
         size_t realArgc = GetArgc();
         if (minArgc > realArgc || maxArgc < realArgc) {
-            HILOG_ERROR("Num of args recved eq %zu while expecting %{public}zu ~ %{public}zu", realArgc, minArgc, maxArgc);
+            HILOG_ERROR(
+                "Num of args recved eq %zu while expecting %{public}zu ~ %{public}zu", realArgc, minArgc, maxArgc);
             return false;
         }
         return true;

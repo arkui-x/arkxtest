@@ -53,7 +53,7 @@ bool NClass::SaveClass(napi_env env, string className, napi_value exClass)
     napi_ref constructor;
     napi_status res = napi_create_reference(env, exClass, 1, &constructor);
     if (res == napi_ok) {
-        nClass.exClassMap.insert( {className, constructor});
+        nClass.exClassMap.insert({className, constructor});
         HILOG_DEBUG("Class %{public}s has been saved", className.c_str());
     } else {
         HILOG_ERROR("INNER BUG. Cannot ref class constructor %{public}s because of %{public}d", className.c_str(), res);
@@ -82,7 +82,8 @@ napi_value NClass::InstantiateClass(napi_env env, const string& className, const
     napi_value instance = nullptr;
     status = napi_new_instance(env, cons, args.size(), args.data(), &instance);
     if (status != napi_ok) {
-        HILOG_ERROR("INNER BUG. Cannot instantiate the class %{public}s because of %{public}d", className.c_str(), status);
+        HILOG_ERROR(
+            "INNER BUG. Cannot instantiate the class %{public}s because of %{public}d", className.c_str(), status);
         return nullptr;
     }
     return instance;
