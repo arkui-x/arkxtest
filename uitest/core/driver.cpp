@@ -1082,7 +1082,7 @@ On* On::Checked(bool checked)
 
 On* On::IsBefore(On* on)
 {
-    HILOG_INFO("Driver::IsBefore")
+    HILOG_INFO("Driver::IsBefore");
     this->isBefore = make_shared<On>(*on);
     this->isEnter = true;
     return this;
@@ -1090,7 +1090,7 @@ On* On::IsBefore(On* on)
 
 On* On::IsAfter(On* on)
 {
-    HILOG_INFO("Driver::IsAfter")
+    HILOG_INFO("Driver::IsAfter");
     this->isAfter = make_shared<On>(*on);
     this->isEnter = true;
     return this;
@@ -1098,7 +1098,7 @@ On* On::IsAfter(On* on)
 
 On* On::WithIn(On* on)
 {
-    HILOG_INFO("Driver::WithIn")
+    HILOG_INFO("Driver::WithIn");
     this->withIn = make_shared<On>(*on);
     this->isEnter = true;
     return this;
