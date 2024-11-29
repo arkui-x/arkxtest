@@ -60,6 +60,7 @@ ohos_source_set("uitest_core_static") {
     "${root_path}/core/driver.cpp",
     "${root_path}/napi/driver_napi_libn.cpp",
     "${root_path}/napi/uitest_n_exporter.cpp",
+    "//foundation/arkui/ace_engine/frameworks/core/event/touch_event.cpp",
   ]
 
   deps = [ "$plugins_root/libs/napi:napi_${target_os}" ]

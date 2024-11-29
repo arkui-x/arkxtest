@@ -207,8 +207,6 @@ static napi_value OnTemplate(napi_env env, napi_callback_info info, int32_t type
         case CommonType::CHECKABLE:
             b_ = false;
             break;
-        default:
-            break;
     }
     if (funcArg.GetArgc() == NARG_CNT::ONE) {
         auto [succ, b] = NVal(env, funcArg[NARG_POS::FIRST]).ToBool();
@@ -285,28 +283,29 @@ static napi_value RelativeOnTemplate(napi_env env, napi_callback_info info, int3
         HILOG_ERROR("Cannot get entity of on");
         return nullptr;
     }
-    switch (type) {
-        case CommonType::ISBEFORE:
-            if (!on->IsBefore(relativeOn)) {
-                HILOG_ERROR("Cannot put attributions to on");
-                return nullptr;
-            }
-            break;
-        case CommonType::ISAFTER:
-            if (!on->IsAfter(relativeOn)) {
-                HILOG_ERROR("Cannot put attributions to on");
-                return nullptr;
-            }
-            break;
-        case CommonType::WITHIN:
-            if (!on->WithIn(relativeOn)) {
-                HILOG_ERROR("Cannot put attributions to on");
-                return nullptr;
-            }
-            break;
-        default:
-            HILOG_ERROR("Cannot read type of RelativeOn");
-            break;
+    switch (type)
+    {
+    case CommonType::ISBEFORE:
+        if (!on->IsBefore(relativeOn)) {
+            HILOG_ERROR("Cannot put attributions to on");
+            return nullptr;
+        }
+        break;
+    case CommonType::ISAFTER:
+        if (!on->IsAfter(relativeOn)) {
+            HILOG_ERROR("Cannot put attributions to on");
+            return nullptr;
+        }
+        break;
+    case CommonType::WITHIN:
+        if (!on->WithIn(relativeOn)) {
+            HILOG_ERROR("Cannot put attributions to on");
+            return nullptr;
+        }
+        break;
+    default:
+        HILOG_ERROR("Cannot read type of RelativeOn");
+        break;
     }
     HILOG_DEBUG("Uitest:: RelativeOnTemplate end.");
     return thisVar;
@@ -647,8 +646,6 @@ static string ProcedureName(int32_t type)
             return "IsChecked";
         case CommonType::CHECKABLE:
             return "IsCheckable";
-        default:
-            break;
     }
     HILOG_DEBUG("ProcedureName end");
 }
@@ -1349,7 +1346,7 @@ napi_value DriverNExporter::AssertComponentExist(napi_env env, napi_callback_inf
 static bool GetArg(napi_env env, napi_value thisValue, int number, shared_ptr<ArgsInfo> argsInfo)
 {
     auto [success, number_] = NVal(env, thisValue).ToInt32();
-    if (!success) {
+    if(!success){
         return false;
     }
     switch (number) {
@@ -1980,8 +1977,7 @@ bool DriverNExporter::Export()
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_FLING, DriverNExporter::Fling),
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_TRIGGER_KEY, DriverNExporter::TriggerKey),
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_TRIGGER_COMBINE_KEYS, DriverNExporter::TriggerCombineKeys),
-        NVal::DeclareNapiFunction(
-            DriverNExporter::FUNCTION_INJECT_MULTI_POINTER_ACTION, DriverNExporter::InjectMultiPointerAction),
+        NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_INJECT_MULTI_POINTER_ACTION, DriverNExporter::InjectMultiPointerAction),
     };
     auto [succ, classValue] = NClass::DefineClass(exports_.env_, DriverNExporter::DRIVER_CLASS_NAME, DriverInitializer,
         std::move(props));

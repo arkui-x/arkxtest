@@ -57,7 +57,7 @@ int32_t Findkeycode(const char ch, int32_t& metaKey, int32_t& keycode)
         return 0;
     }
 
-    if (islower(ch)) {
+    if(islower(ch)) {
         keycode = static_cast<int32_t>(ch - LOWER_A) + static_cast<int32_t>(Ace::KeyCode::KEY_A);
         return 0;
     }
@@ -112,8 +112,7 @@ Ace::Platform::UIContent* GetUIContent()
     return delegator->GetUIContent(topAbility->instanceId_);
 }
 
-static void PackagingEvent(
-    Ace::TouchEvent& event, Ace::TimeStamp time, Ace::TouchType type, const Point& point, int id = 0)
+static void PackagingEvent(Ace::TouchEvent& event, Ace::TimeStamp time, Ace::TouchType type, const Point& point, int id = 0)
 {
     event.id = id;
     event.time = time;
@@ -168,33 +167,34 @@ void Driver::TriggerKey(int keyCode)
 bool IsCombineKey(int key)
 {
     bool flag = false;
-    switch (key) {
-        case static_cast<int32_t>(Ace::KeyCode::KEY_CTRL_LEFT):
-            flag = true;
-            break;
-        case static_cast<int32_t>(Ace::KeyCode::KEY_CTRL_RIGHT):
-            flag = true;
-            break;
-        case static_cast<int32_t>(Ace::KeyCode::KEY_SHIFT_LEFT):
-            flag = true;
-            break;
-        case static_cast<int32_t>(Ace::KeyCode::KEY_SHIFT_RIGHT):
-            flag = true;
-            break;
-        case static_cast<int32_t>(Ace::KeyCode::KEY_ALT_LEFT):
-            flag = true;
-            break;
-        case static_cast<int32_t>(Ace::KeyCode::KEY_ALT_RIGHT):
-            flag = true;
-            break;
-        case static_cast<int32_t>(Ace::KeyCode::KEY_META_LEFT):
-            flag = true;
-            break;
-        case static_cast<int32_t>(Ace::KeyCode::KEY_META_RIGHT):
-            flag = true;
-            break;
-        default:
-            break;
+    switch (key)
+    {
+    case static_cast<int32_t>(Ace::KeyCode::KEY_CTRL_LEFT):
+        flag = true;
+        break;
+    case static_cast<int32_t>(Ace::KeyCode::KEY_CTRL_RIGHT):
+        flag = true;
+        break;
+    case static_cast<int32_t>(Ace::KeyCode::KEY_SHIFT_LEFT):
+        flag = true;
+        break;
+    case static_cast<int32_t>(Ace::KeyCode::KEY_SHIFT_RIGHT):
+        flag = true;
+        break;
+    case static_cast<int32_t>(Ace::KeyCode::KEY_ALT_LEFT):
+        flag = true;
+        break;
+    case static_cast<int32_t>(Ace::KeyCode::KEY_ALT_RIGHT):
+        flag = true;
+        break;
+    case static_cast<int32_t>(Ace::KeyCode::KEY_META_LEFT):
+        flag = true;
+        break;
+    case static_cast<int32_t>(Ace::KeyCode::KEY_META_RIGHT):
+        flag = true;
+        break;
+    default:
+        break;
     }
     return flag;
 }
@@ -254,9 +254,11 @@ static bool CompareTouchEventTimeStamp(Ace::TouchEvent &event1, Ace::TouchEvent 
     int64_t timeValue2 = std::chrono::duration_cast<std::chrono::nanoseconds>(event2.time.time_since_epoch()).count();
     if (timeValue1 > timeValue2) {
         return false;
-    } else if (timeValue1 < timeValue2) {
+    }
+    else if (timeValue1 < timeValue2) {
         return true;
-    } else {
+    }
+    else {
         return event1.id < event2.id;
     }
 }
@@ -330,8 +332,7 @@ bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed)
                 const float pointY = startY + (distanceY * step) / steps;
                 const uint32_t timeOffsetMs = timeUnitMs * (step - 1);
                 Ace::TouchEvent moveEvent;
-                PackagingEvent(moveEvent, TimeStamp(
-                    endTimeMillis + timeOffsetMs), Ace::TouchType::MOVE, {pointX, pointY}, it.first);
+                PackagingEvent(moveEvent, TimeStamp(endTimeMillis + timeOffsetMs), Ace::TouchType::MOVE, {pointX, pointY}, it.first);
                 injectEvents.push_back(moveEvent);
                 multiPointerActionHoldTimeMillis.push_back(timeUnitMs);
             }
@@ -342,8 +343,7 @@ bool Driver::InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed)
     }
     for (auto&& it : pointers.fingerPointMap_) {
         Ace::TouchEvent upEvent;
-        PackagingEvent(upEvent, TimeStamp(multiPointerActionEndTimeMillis[it.first]),
-            Ace::TouchType::UP, it.second.rbegin()->second, it.first);
+        PackagingEvent(upEvent, TimeStamp(multiPointerActionEndTimeMillis[it.first]), Ace::TouchType::UP, it.second.rbegin()->second, it.first);
         injectEvents.push_back(upEvent);
     }
     std::sort(injectEvents.begin(), injectEvents.end(), CompareTouchEventTimeStamp);
@@ -741,10 +741,8 @@ void Component::InputText(const string& text)
         // ProcessKeyEvent 接口参数: int32_t keyCode, int32_t keyAction, int32_t repeatTime, int64_t timeStamp = 0,
         // int64_t timeStampStart = 0, int32_t metaKey = 0, int32_t sourceDevice = 0, int32_t deviceId = 0
         // int32_t metaKey 参数取值: CTRL = 1,    SHIFT = 2,    ALT = 4,    META = 8,
-        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_V),
-            static_cast<int32_t>(Ace::KeyAction::DOWN), 0, 0, 0, KEY_CTRL, 0, 0, text);
-        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_V),
-            static_cast<int32_t>(Ace::KeyAction::UP), 0, 0, 0, KEY_CTRL, 0, 0, text);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_V), static_cast<int32_t>(Ace::KeyAction::DOWN), 0, 0, 0, KEY_CTRL, 0, 0, text);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_V), static_cast<int32_t>(Ace::KeyAction::UP), 0, 0, 0, KEY_CTRL, 0, 0, text);
         driver.DelayMs(DELAY_TIME);
     }
     // Ace::KeyCode::KEY_ENTER 2054 回车键
@@ -758,16 +756,12 @@ void Component::ClearText()
     auto uiContent = GetUIContent();
     CHECK_NULL_VOID(uiContent);
 
-    uiContent->ProcessKeyEvent(
-        static_cast<int32_t>(Ace::KeyCode::KEY_MOVE_END), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
-    uiContent->ProcessKeyEvent(
-        static_cast<int32_t>(Ace::KeyCode::KEY_MOVE_END), static_cast<int32_t>(Ace::KeyAction::UP), 0);
+    uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_MOVE_END), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+    uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_MOVE_END), static_cast<int32_t>(Ace::KeyAction::UP), 0);
     Driver driver;
     for (uint32_t i = 0; i < componentInfo_.text.length(); i++) {
-        uiContent->ProcessKeyEvent(
-            static_cast<int32_t>(Ace::KeyCode::KEY_DEL), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
-        uiContent->ProcessKeyEvent(
-            static_cast<int32_t>(Ace::KeyCode::KEY_DEL), static_cast<int32_t>(Ace::KeyAction::UP), 0);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_DEL), static_cast<int32_t>(Ace::KeyAction::DOWN), 0);
+        uiContent->ProcessKeyEvent(static_cast<int32_t>(Ace::KeyCode::KEY_DEL), static_cast<int32_t>(Ace::KeyAction::UP), 0);
         driver.DelayMs(DELAY_TIME);
     }
     componentInfo_.text.clear();
@@ -1127,7 +1121,7 @@ bool On::CompareText(const string& text) const
         return text.find(*this->text) == 0;
     } else if (this->pattern_ == MatchPattern::ENDS_WITH) {
         auto ret = text.find(*this->text);
-        if (ret != -1) {
+        if ( ret != -1) {
             return (ret == (text.length() - this->text->length()));
         }
     }
@@ -1308,7 +1302,7 @@ void GetComponentvalues(const On& on, vector<shared_ptr<Component>> &componentsI
     vector<unique_ptr<Component>>& components)
 {
     HILOG_DEBUG("GetComponentvalues begin.");
-    for (int index = 0; index < componentsInRange.size(); index++) {
+    for(int index = 0; index < componentsInRange.size(); index++){
         if (on == componentsInRange[index]->GetComponentInfo()) {
             HILOG_DEBUG("Component found.");
             auto component = make_unique<Component>();
