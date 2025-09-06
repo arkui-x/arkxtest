@@ -49,6 +49,9 @@ public:
     static napi_value Selected(napi_env env, napi_callback_info info);
     static napi_value Checked(napi_env env, napi_callback_info info);
     static napi_value Checkable(napi_env env, napi_callback_info info);
+    static napi_value IsBefore(napi_env env, napi_callback_info info);
+    static napi_value IsAfter(napi_env env, napi_callback_info info);
+    static napi_value WithIn(napi_env env, napi_callback_info info);
 
     static constexpr const char* ON_CLASS_NAME_ = "ON";
     static constexpr const char* ON_CLASS_NAME = "On";
@@ -63,6 +66,9 @@ public:
     static constexpr const char* FUNCTION_SELECTED = "selected";
     static constexpr const char* FUNCTION_CHECKED = "checked";
     static constexpr const char* FUNCTION_CHECKABLE = "checkable";
+    static constexpr const char* FUNCTION_ISBEFORE = "isBefore";
+    static constexpr const char* FUNCTION_ISAFTER = "isAfter";
+    static constexpr const char* FUNCTION_WITHIN = "within";
 };
 
 class ComponentNExporter : public LibN::NExporter {
@@ -92,6 +98,9 @@ public:
     static napi_value ScrollToBottom(napi_env env, napi_callback_info info);
     static napi_value ScrollSearch(napi_env env, napi_callback_info info);
     static napi_value GetBoundsCenter(napi_env env, napi_callback_info info);
+    static napi_value GetBounds(napi_env env, napi_callback_info info);
+    static napi_value PinchOut(napi_env env, napi_callback_info info);
+    static napi_value PinchIn(napi_env env, napi_callback_info info);
 
     static constexpr const char* COMPONENT_CLASS_NAME = "Component";
     static constexpr const char* FUNCTION_CLICK = "click";
@@ -114,6 +123,9 @@ public:
     static constexpr const char* FUNCTION_SCROLL_TO_BOTTOM = "scrollToBottom";
     static constexpr const char* FUNCTION_SCROLL_SEARCH = "scrollSearch";
     static constexpr const char* FUNCTION_GET_BOUNDS_CENTER = "getBoundsCenter";
+    static constexpr const char* FUNCTION_GET_BOUNDS = "getBounds";
+    static constexpr const char* FUNCTION_PINCH_OUT = "pinchOut";
+    static constexpr const char* FUNCTION_PINCH_IN = "pinchIn";
 };
 
 class DriverNExporter final : public LibN::NExporter {
@@ -135,6 +147,9 @@ public:
     static napi_value LongClick(napi_env env, napi_callback_info info);
     static napi_value Swipe(napi_env env, napi_callback_info info);
     static napi_value Fling(napi_env env, napi_callback_info info);
+    static napi_value TriggerKey(napi_env env, napi_callback_info info);
+    static napi_value TriggerCombineKeys(napi_env env, napi_callback_info info);
+    static napi_value InjectMultiPointerAction(napi_env env, napi_callback_info info);
 
     static constexpr const char* DRIVER_CLASS_NAME = "Driver";
     static constexpr const char* FUNCTION_CREATE = "create";
@@ -148,6 +163,25 @@ public:
     static constexpr const char* FUNCTION_LONG_CLICK = "longClick";
     static constexpr const char* FUNCTION_SWIPE = "swipe";
     static constexpr const char* FUNCTION_FLING = "fling";
+    static constexpr const char* FUNCTION_TRIGGER_KEY = "triggerKey";
+    static constexpr const char* FUNCTION_TRIGGER_COMBINE_KEYS = "triggerCombineKeys";
+    static constexpr const char* FUNCTION_INJECT_MULTI_POINTER_ACTION = "injectMultiPointerAction";
+};
+
+class PointerMatrixNExporter final : public LibN::NExporter {
+public:
+    PointerMatrixNExporter(napi_env env, napi_value exports);
+    ~PointerMatrixNExporter() override;
+
+    bool Export() override;
+    std::string GetClassName() override;
+
+    static napi_value Create(napi_env env, napi_callback_info info);
+    static napi_value SetPoint(napi_env env, napi_callback_info info);
+
+    static constexpr const char* POINTER_MATRIX_CLASS_NAME = "PointerMatrix";
+    static constexpr const char* FUNCTION_CREATE = "create";
+    static constexpr const char* FUNCTION_SET_POINT = "setPoint";
 };
 
 } // namespace OHOS::UiTest

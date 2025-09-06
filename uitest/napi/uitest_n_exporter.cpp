@@ -22,6 +22,21 @@ namespace OHOS::UiTest {
 using namespace std;
 using namespace LibN;
 
+static void InitUiDirection(napi_env env, napi_value exports)
+{
+    char propertyName[] = "UiDirection";
+    napi_value obj = nullptr;
+    napi_create_object(env, &obj);
+    static napi_property_descriptor desc[] = {
+        DECLARE_NAPI_STATIC_PROPERTY("LEFT", NVal::CreateInt32(env, (int32_t)UiDirection::LEFT).val_),
+        DECLARE_NAPI_STATIC_PROPERTY("RIGHT", NVal::CreateInt32(env, (int32_t)UiDirection::RIGHT).val_),
+        DECLARE_NAPI_STATIC_PROPERTY("UP", NVal::CreateInt32(env, (int32_t)UiDirection::UP).val_),
+        DECLARE_NAPI_STATIC_PROPERTY("DOWN", NVal::CreateInt32(env, (int32_t)UiDirection::DOWN).val_),
+    };
+    napi_define_properties(env, obj, sizeof(desc) / sizeof(desc[0]), desc);
+    napi_set_named_property(env, exports, propertyName, obj);
+}
+
 static void InitMatchPattern(napi_env env, napi_value exports)
 {
     char propertyName[] = "MatchPattern";
@@ -42,11 +57,13 @@ static void InitMatchPattern(napi_env env, napi_value exports)
  ***********************************************/
 napi_value UiTestExport(napi_env env, napi_value exports)
 {
+    InitUiDirection(env, exports);
     InitMatchPattern(env, exports);
     std::vector<std::unique_ptr<NExporter>> products;
     products.emplace_back(std::make_unique<OnNExporter>(env, exports));
     products.emplace_back(std::make_unique<ComponentNExporter>(env, exports));
     products.emplace_back(std::make_unique<DriverNExporter>(env, exports));
+    products.emplace_back(std::make_unique<PointerMatrixNExporter>(env, exports));
     for (auto&& product : products) {
         if (!product->Export()) {
             HILOG_ERROR("INNER BUG. Failed to export class %s for module UiTest ", product->GetClassName().c_str());

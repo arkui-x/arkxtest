@@ -17,7 +17,7 @@
 #define DRIVER_H
 
 #include <memory>
-
+#include <map>
 #include "component_info.h"
 
 namespace OHOS::UiTest {
@@ -34,7 +34,17 @@ enum CommonType : int32_t {
     SCROLLABLE,
     ENABLED,
     FOCUSED,
-    LONGCLICKABLE
+    LONGCLICKABLE,
+    ISBEFORE,
+    ISAFTER,
+    WITHIN
+};
+
+enum UiDirection : int32_t {
+    LEFT = 0,
+    RIGHT,
+    UP,
+    DOWN
 };
 
 enum MatchPattern : int32_t {
@@ -45,8 +55,26 @@ enum MatchPattern : int32_t {
 };
 
 struct Point {
-    int x;
-    int y;
+    int x = 0;
+    int y = 0;
+};
+
+struct PointPair {
+    Point from;
+    Point to;
+};
+
+/*
+left 控件边框的左上角的X坐标。
+top 控件边框的左上角的Y坐标。
+right 控件边框的右下角的X坐标。
+bottom 控件边框的右下角的Y坐标。
+*/
+struct Rect {
+    int left;
+    int top;
+    int right;
+    int bottom;
 };
 
 /**
@@ -65,6 +93,9 @@ public:
     uint16_t swipeStepsCounts_ = 50;
 };
 
+class PointerMatrix;
+class Component;
+
 class On {
 public:
     On* Text(const string& text, MatchPattern pattern);
@@ -78,6 +109,9 @@ public:
     On* Scrollable(bool scrollable);
     On* Checkable(bool checkable);
     On* Checked(bool checked);
+    On* IsBefore(On* on);
+    On* IsAfter(On* on);
+    On* WithIn(On* on);
 
     shared_ptr<string> id;
     shared_ptr<string> text;
@@ -90,6 +124,9 @@ public:
     shared_ptr<bool> selected;
     shared_ptr<bool> checked;
     shared_ptr<bool> checkable;
+    shared_ptr<On> isBefore;
+    shared_ptr<On> isAfter;
+    shared_ptr<On> withIn;
     MatchPattern pattern_ = MatchPattern::EQUALS;
 
     bool CompareText(const string& text) const;
@@ -118,12 +155,18 @@ public:
     void ClearText();
     void ScrollToTop(int speed);
     void ScrollToBottom(int speed);
+
+    Rect GetBounds();
+    void PinchOut(float scale);
+    void PinchIn(float scale);
+
     void SetComponentInfo(const OHOS::Ace::Platform::ComponentInfo& com);
+    OHOS::Ace::Platform::ComponentInfo GetComponentInfo();
     unique_ptr<Component> ScrollSearch(const On& on);
     Point GetBoundsCenter();
-
 private:
     OHOS::Ace::Platform::ComponentInfo componentInfo_;
+    shared_ptr<Component> parentComponent_;
 };
 
 class Driver {
@@ -133,15 +176,39 @@ public:
 
     bool AssertComponentExist(const On& on);
     void PressBack();
+
+    void TriggerKey(int keyCode);
+    void TriggerCombineKeys(int key0, int key1, int key2 = -1);
+    bool InjectMultiPointerAction(PointerMatrix& pointers, uint32_t speed = 0);
+    
     void DelayMs(int dur);
     void Click(int x, int y);
     void DoubleClick(int x, int y);
     void LongClick(int x, int y);
-    void Swipe(int startx, int starty, int endx, int endy, int speed);
-    void Fling(const Point& from, const Point& to, int stepLen, int speed);
+    void Swipe(int startx, int starty, int endx, int endy, uint32_t speed);
+    void Fling(const Point& from, const Point& to, int stepLen, uint32_t speed = 0);
+    void Fling(UiDirection direction, uint32_t speed = 0);
     unique_ptr<Component> FindComponent(const On& on);
     vector<unique_ptr<Component>> FindComponents(const On& on);
+    void CalculateDirection(const OHOS::Ace::Platform::ComponentInfo& info,
+        const UiDirection& direction, Point& from, Point& to);
 };
+
+class PointerMatrix {
+public:
+    PointerMatrix() = default;
+    ~PointerMatrix() = default;
+    PointerMatrix* Create(uint32_t fingers, uint32_t steps);
+    void SetPoint(uint32_t finger, uint32_t step, Point& point);
+    PointerMatrix& operator=(PointerMatrix&& other);
+    uint32_t GetSteps() const;
+    // finger, (step, point)
+    std::map<int, std::map<int, Point>> fingerPointMap_;
+private:
+    uint32_t fingerNum_ = 0;
+    uint32_t stepNum_ = 0;
+};
+
 } // namespace OHOS::UiTest
 
 #endif // DRIVER_H

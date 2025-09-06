@@ -20,5 +20,6 @@
 
 namespace OHOS::UiTest {
 static void InitMatchPattern(napi_env env, napi_value exports);
+static void InitUiDirection(napi_env env, napi_value exports);
 } // namespace OHOS::UiTest
 #endif // OHOS_UITEST_N_EXPORTER_H

@@ -44,7 +44,7 @@ arkXtest
 | ---- | -------------------------------- | ------------------------------------------------------------ |
 | 1    | assertClose                      | 检验actualvalue和expectvalue(0)的接近程度是否是expectValue(1)。 |
 | 2    | assertContain                    | 检验actualvalue中是否包含expectvalue。                       |
-| 3    | assertEqual                      | 检验actualvalue是否等于expectvalue[0]。                      |
+| 3    | assertEqual                      | 检验actualvalue是否等于expectvalue(0)。                      |
 | 4    | assertFail                       | 抛出一个错误。                                               |
 | 5    | assertFalse                      | 检验actualvalue是否是false。                                 |
 | 6    | assertTrue                       | 检验actualvalue是否是true。                                  |
