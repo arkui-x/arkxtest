@@ -169,6 +169,12 @@ class ARKUIXJSUnitTestDriver(IDriver):
                 else:
                     LOG.error("Not find ace test app file!")
                     raise ExecuteTerminate(error_msg="Not find ace test app file!")
+        except Exception as exception:
+            self.error_message = exception
+            if not getattr(exception, "error_no", ""):
+                setattr(exception, "error_no", "03409")
+            LOG.exception(self.error_message, exc_info=True, error_no="03409")
+            raise exception
         finally:
             do_module_kit_teardown(request)
             if self.runner.coverage_data:
@@ -284,6 +290,8 @@ class ARKUIXJSUnitTestRunner:
             timeout_thread.start()
             while True:
                 output = proc.stdout.readline()
+                if output and b'OHOS_REPORT' not in output:
+                    LOG.info(output)
                 if b'Test failed' in output or b'test failed' in output:
                     raise ExecuteTerminate(error_msg="Test failed!")
                 if output == b'' and proc.poll() is not None:
