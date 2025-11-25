@@ -34,7 +34,7 @@ arkXtest
 | 6    | it         | 定义一条测试用例，支持三个参数：用例名称，过滤参数和用例函数。 |
 | 7    | expect     | 支持bool类型判断等多种断言方法。                             |
 
-示例代码可参考[使用指南](https://gitee.com/arkui-x/docs/blob/master/zh-cn/application-dev/test/arkxtest.md#编写测试代码-1)。
+示例代码可参考[使用指南](https://gitcode.com/arkui-x/docs/blob/master/zh-cn/application-dev/test/arkxtest.md#编写测试代码-1)。
 
 ###  断言库
 
@@ -257,7 +257,7 @@ export default async function abilityTest() {
 
 > 说明
 >
-> 单元测试框架代码复用OpenHarmony平台代码，具体可[查看](https://gitee.com/openharmony/testfwk_arkxtest)。
+> 单元测试框架代码复用OpenHarmony平台代码，具体可[查看](https://gitcode.com/openharmony/testfwk_arkxtest)。
 
 ##  Ui测试框架功能特性
 

@@ -946,7 +946,7 @@ class DeviceLogCollector:
         self.device.execute_shell_command(cmd)
         cmd = "rm -rf /data/log/hilog/*.gz"
         self.device.execute_shell_command(cmd)
-        # 开始日志任务 设置落盘文件个数最大值1000, 单个文件20M，链接https://gitee.com/openharmony/hiviewdfx_hilog
+        # 开始日志任务 设置落盘文件个数最大值1000, 单个文件20M，链接https://gitcode.com/openharmony/hiviewdfx_hilog
         cmd = "hilog -w start -l {} -n 1000".format(log_size)
         out = self.device.execute_shell_command(cmd)
         LOG.info("Execute command: {}, result is {}".format(cmd, out))
