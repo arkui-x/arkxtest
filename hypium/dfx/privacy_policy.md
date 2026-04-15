@@ -1,0 +1,1 @@
+请访问[应用UI测试](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/hypium-python-guidelines)查看完整隐私协议。
