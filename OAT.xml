@@ -58,6 +58,16 @@ Note:If the text contains special characters, please escape them according to th
             <filefilter name="binaryFileTypePolicyFilter" desc="二进制文件校验策略的过滤条件" >
                 <filteritem type="filepath" name="xdevice/figures/.*" desc="自研二进制文件"/>
             </filefilter>
+            <filefilter name="copyrightPolicyFilter" desc="Copyright文件头校验策略的过滤条件" >
+                <filteritem type="filepath" name="hypium/.*.py" desc="hypium插件源码"/>
+                <filteritem type="filepath" name="hypium/docs/.*" desc="hypium插件说明文档"/>
+                <filteritem type="filepath" name="hypium/dfx/.*" desc="hypium插件源码"/>
+            </filefilter>
+            <filefilter name="defaultPolicyFilter" desc="License文件头校验策略的过滤条件" >
+                <filteritem type="filepath" name="hypium/.*.py" desc="hypium插件源码"/>
+                <filteritem type="filepath" name="hypium/docs/.*" desc="hypium插件说明文档"/>
+                <filteritem type="filepath" name="hypium/dfx/.*" desc="hypium插件源码"/>
+            </filefilter>
         </filefilterlist>
     </oatconfig>
 </configuration>
