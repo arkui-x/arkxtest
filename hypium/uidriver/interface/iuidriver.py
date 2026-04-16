@@ -177,8 +177,63 @@ class IScreenBasic:
         """
         pass
 
+class IUiDriverTimeLocaleModule(ABC):
+
+    @abstractmethod
+    def get_language(self):
+        """获取系统语言地区。"""
+        pass
+
+
+class IUiDriverScreenModule(ABC):
+
+    @abstractmethod
+    def set_rotation(self, rotation):
+        """设置屏幕旋转方向。"""
+        pass
+
+    @abstractmethod
+    def close(self):
+        """关闭屏幕显示。"""
+        pass
+
+    @abstractmethod
+    def is_on(self):
+        """获取屏幕亮屏状态。"""
+        pass
+
+    @abstractmethod
+    def wake_up(self):
+        """唤醒屏幕。"""
+        pass
+
+
+class IUiDriverScreenLockModule(ABC):
+
+    @abstractmethod
+    def is_locked(self):
+        """获取屏幕锁定状态。"""
+        pass
 
 class IUiDriver(ABC, IScreenBasic, IUiDriverPenOperation, IUiDriverTouchPadOperation):
+
+    @property
+    @abstractmethod
+    def TimeLocale(self) -> IUiDriverTimeLocaleModule:
+        """语言地区模块。"""
+        pass
+
+    @property
+    @abstractmethod
+    def Screen(self) -> IUiDriverScreenModule:
+        """屏幕操作模块。"""
+        pass
+
+    @property
+    @abstractmethod
+    def ScreenLock(self) -> IUiDriverScreenLockModule:
+        """锁屏状态模块。"""
+        pass
 
     @property
     @abstractmethod
@@ -533,6 +588,15 @@ class IUiDriver(ABC, IScreenBasic, IUiDriverPenOperation, IUiDriverTouchPadOpera
                  # 获取控件对象的边框位置
                  component = driver.find_component(BY.text("按钮"))
                  bounds = driver.get_component_bound(component)
+        """
+        pass
+
+    @abstractmethod
+    def get_component_pos(self, component: Union[ISelector, IUiComponent]):
+        """
+        @func 获取指定控件的中心点坐标
+        @param component: 需要获取坐标的控件选择器或者控件对象
+        @return: 返回控件中心点坐标，例如(x, y)，如果没找到控件则返回None
         """
         pass
 
