@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Huawei Device Co., Ltd.
+ * Copyright (c) 2023-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -39,12 +39,18 @@ constexpr int E_PARAMS = 401;
 const std::string UITEST_TAG_ERR_CODE = "code";
 const std::string UITEST_TAG_ERR_DATA = "data";
 
+static inline std::string FormatConcurrentErrMsg(const std::string &pending, const std::string &incoming)
+{
+    return "uitest-api dose not allow calling concurrently, current processing: " + pending + ", incoming: " + incoming;
+}
+
 enum ErrCodeSuffixOfArkUITest {
     E_INITIALIZE = ARKX_TEST_TAG + 1,
     E_AWAIT = ARKX_TEST_TAG + 2,
     E_ASSERTFAILD = ARKX_TEST_TAG + 3,
     E_DESTROYED = ARKX_TEST_TAG + 4,
     E_NOTSUPPORT = ARKX_TEST_TAG + 5,
+    E_INVALID_PARAM = ARKX_TEST_TAG + 7,
 };
 
 static inline std::unordered_map<int, std::pair<int32_t, std::string>> errCodeTable {
@@ -54,6 +60,7 @@ static inline std::unordered_map<int, std::pair<int32_t, std::string>> errCodeTa
     { E_ASSERTFAILD, { E_ASSERTFAILD, "The assertion is failed" } },
     { E_DESTROYED, { E_DESTROYED, "The window is invisible or destroyed" } },
     { E_NOTSUPPORT, { E_NOTSUPPORT, "The action is not supported on this window" } },
+    { E_INVALID_PARAM, { E_INVALID_PARAM, "The input parameter is invalid" } },
 };
 
 class NError {

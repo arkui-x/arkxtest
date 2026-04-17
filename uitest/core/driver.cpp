@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Huawei Device Co., Ltd.
+ * Copyright (c) 2023-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,25 +15,52 @@
 
 #include "driver.h"
 
-#include <future>
-#include <vector>
-#include <math.h>
+#include <atomic>
 #include <chrono>
+#include <future>
+#include <math.h>
+#include <vector>
+
 #include "ability_delegator/ability_delegator_registry.h"
 #include "accessibility_node.h"
-#include "core/event/key_event.h"
-#include "core/event/touch_event.h"
+#include "display_interface.h"
+#include "foundation/arkui/ace_engine/frameworks/core/pipeline/container_window_manager.h"
+#include "screen_capture_proxy.h"
 #include "ui_content.h"
 #include "utils/log.h"
 
+#include "core/event/key_event.h"
+#include "core/event/touch_event.h"
+#include "touch_inject_proxy.h"
+
 namespace OHOS::UiTest {
 using namespace std;
+
+namespace {
+void SetErrCode(int32_t* errCode, int32_t value)
+{
+    if (errCode != nullptr) {
+        *errCode = value;
+    }
+}
+bool HasScreenCaptureRect(const Rect& rect)
+{
+    return rect.left != 0 || rect.top != 0 || rect.right != 0 || rect.bottom != 0;
+}
+
+bool IsScreenCaptureRectValid(const Rect& rect, const Point& displaySize)
+{
+    return rect.left >= 0 && rect.top >= 0 && rect.right > rect.left && rect.bottom > rect.top &&
+        rect.right <= displaySize.x && rect.bottom <= displaySize.y;
+}
+} // namespace
 
 static constexpr const int32_t DOUBLE_CLICK = 2;
 static constexpr const char UPPER_A = 'A';
 static constexpr const char LOWER_A = 'a';
 static constexpr const char DEF_NUMBER = '0';
 static constexpr const int32_t DELAY_TIME = 100;
+static constexpr int32_t LONG_CLICK_POLLING_INTERVAL_MS = 100;
 constexpr size_t INDEX_ZERO = 0;
 constexpr size_t INDEX_ONE = 1;
 constexpr size_t INDEX_TWO = 2;
@@ -47,6 +74,14 @@ constexpr int32_t KEY_CTRL = 1;
 constexpr int32_t KEY_SHIFT = 2;
 constexpr int32_t KEY_ALT = 4;
 constexpr int32_t KEY_META = 8;
+
+constexpr float MIN_DRAG_DISTANCE = 1.0f;
+constexpr uint32_t MS_PER_SECOND = 1000;
+constexpr int32_t INJECT_ACTION_DOWN = 0;
+constexpr int32_t INJECT_ACTION_UP = 1;
+constexpr int32_t INJECT_ACTION_MOVE = 2;
+
+static std::atomic<int32_t> g_driverInstanceCount{ 0 };
 
 int32_t Findkeycode(const char ch, int32_t& metaKey, int32_t& keycode)
 {
@@ -95,6 +130,12 @@ int64_t getCurrentTimeMillis()
     return std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
 }
 
+int64_t GetMonotonicTimeMillis()
+{
+    auto now = std::chrono::steady_clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+}
+
 inline Ace::TimeStamp TimeStamp(int64_t currentTimeMillis)
 {
     return Ace::TimeStamp(std::chrono::milliseconds(currentTimeMillis));
@@ -109,7 +150,27 @@ Ace::Platform::UIContent* GetUIContent()
     }
     auto topAbility = delegator->GetCurrentTopAbility();
     CHECK_NULL_RETURN(topAbility, nullptr);
-    return delegator->GetUIContent(topAbility->instanceId_);
+    auto uiContent = delegator->GetUIContent(topAbility->instanceId_);
+    return uiContent;
+}
+
+Driver::Driver()
+{
+    g_driverInstanceCount.fetch_add(1);
+    auto uiContent = GetUIContent();
+    if (uiContent != nullptr) {
+        uiContent->NotifyUiTestStart();
+    }
+}
+
+Driver::~Driver()
+{
+    if (g_driverInstanceCount.fetch_sub(1) == 1) {
+        auto uiContent = GetUIContent();
+        if (uiContent != nullptr) {
+            uiContent->NotifyUiTestEnd();
+        }
+    }
 }
 
 static void PackagingEvent(Ace::TouchEvent& event, Ace::TimeStamp time, Ace::TouchType type, const Point& point, int id = 0)
@@ -123,7 +184,50 @@ static void PackagingEvent(Ace::TouchEvent& event, Ace::TimeStamp time, Ace::Tou
     event.screenY = point.y;
     event = event.UpdatePointers();
 }
+static void CheckComponentDuringLongClick(Driver& driver, const On& on, const std::atomic<bool>& touchDone,
+    std::atomic<bool>& componentFound, const std::chrono::steady_clock::time_point& startTime, int32_t durationMs)
+{
+    while (!componentFound.load()) {
+        auto component = driver.FindComponent(on);
+        if (component != nullptr) {
+            componentFound = true;
+            break;
+        }
+        auto elapsed =
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startTime)
+                .count();
+        if (elapsed >= durationMs || touchDone.load()) {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(LONG_CLICK_POLLING_INTERVAL_MS));
+    }
+}
+static void PerformLongClickTouch(const Point& point, int32_t durationMs, std::atomic<bool>& touchDone)
+{
+    std::vector<Ace::TouchEvent> touchEvents;
+    const int64_t currentTimeMillis = getCurrentTimeMillis();
 
+    Ace::TouchEvent downEvent;
+    PackagingEvent(downEvent, TimeStamp(currentTimeMillis), Ace::TouchType::DOWN, { point.x, point.y });
+    touchEvents.push_back(downEvent);
+
+    auto uiContent = GetUIContent();
+    if (uiContent != nullptr) {
+        uiContent->ProcessBasicEvent(touchEvents);
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(durationMs));
+
+    touchEvents.clear();
+    Ace::TouchEvent upEvent;
+    const int64_t upTimeMillis = getCurrentTimeMillis();
+    PackagingEvent(upEvent, TimeStamp(upTimeMillis), Ace::TouchType::UP, { point.x, point.y });
+    touchEvents.push_back(upEvent);
+    if (uiContent != nullptr) {
+        uiContent->ProcessBasicEvent(touchEvents);
+    }
+    touchDone = true;
+}
 Rect GetBounds(const OHOS::Ace::Platform::ComponentInfo& component)
 {
     Rect rect;
@@ -371,6 +475,16 @@ void Driver::DelayMs(int dur)
     }
 }
 
+bool Driver::WaitForIdle(uint32_t idleThresholdMs, uint32_t timeoutMs)
+{
+    auto uiContent = GetUIContent();
+    if (uiContent == nullptr) {
+        HILOG_ERROR("Driver::WaitForIdle failed: UIContent is null");
+        return false;
+    }
+    return uiContent->WaitEventIdle(idleThresholdMs, timeoutMs);
+}
+
 void Driver::Click(int x, int y)
 {
     HILOG_DEBUG("Driver::Click x=%d, y=%d", x, y);
@@ -431,9 +545,110 @@ void Driver::LongClick(int x, int y)
     uiContent->ProcessBasicEvent(clickEvents);
 }
 
+bool Driver::IsComponentPresentWhenLongClick(const On& on, const Point& point, int32_t durationMs)
+{
+    auto uiContent = GetUIContent();
+    CHECK_NULL_RETURN(uiContent, false);
+    if (durationMs < DEFAULT_LONG_CLICK_DURATION_MS) {
+        HILOG_ERROR("Driver::IsComponentPresentWhenLongClick invalid duration: %d", durationMs);
+        return false;
+    }
+
+    std::atomic<bool> componentFound(false);
+    std::atomic<bool> touchDone(false);
+
+    const auto startTime = std::chrono::steady_clock::now();
+    std::thread checkThread(CheckComponentDuringLongClick, std::ref(*this), std::cref(on), std::cref(touchDone),
+        std::ref(componentFound), std::cref(startTime), durationMs);
+    std::thread touchThread(PerformLongClickTouch, std::cref(point), durationMs, std::ref(touchDone));
+
+    if (touchThread.joinable()) {
+        touchThread.join();
+    }
+    if (checkThread.joinable()) {
+        checkThread.join();
+    }
+
+    return componentFound.load();
+}
+
+unique_ptr<Component> Driver::WaitForComponent(const On& on, int32_t timeMs)
+{
+    if (timeMs < 0) {
+        HILOG_ERROR("Driver::WaitForComponent invalid timeMs: %d", timeMs);
+        return nullptr;
+    }
+    static constexpr int32_t sliceMs = 20;
+    auto component = FindComponent(on);
+    if (component != nullptr) {
+        return component;
+    }
+
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeMs);
+    while (std::chrono::steady_clock::now() < deadline) {
+        DelayMs(sliceMs);
+        component = FindComponent(on);
+        if (component != nullptr) {
+            return component;
+        }
+    }
+    return nullptr;
+}
+
+void Driver::Drag(int startx, int starty, int endx, int endy, uint32_t speed)
+{
+    auto proxy = TouchInjectProxy::GetInstance();
+    if (proxy == nullptr) {
+        HILOG_ERROR("Driver::Drag inject proxy is null");
+        return;
+    }
+
+    UiOpArgs options;
+    const uint32_t actionSpeed =
+        (speed < options.minSwipeVelocityPps_ || speed > options.maxFlingVelocityPps_) ? options.defaultVelocityPps_
+                                                                                        : speed;
+    if (actionSpeed == 0) {
+        HILOG_ERROR("Driver::Drag ignored. Invalid speed");
+        return;
+    }
+
+    const float distX = endx - startx;
+    const float distY = endy - starty;
+    const float distance = sqrt(distX * distX + distY * distY);
+    if (distance < MIN_DRAG_DISTANCE || options.swipeStepsCounts_ <= 0) {
+        HILOG_ERROR("Driver::Drag ignored. Invalid distance or steps");
+        return;
+    }
+    const uint16_t steps = options.swipeStepsCounts_ > 0 ? options.swipeStepsCounts_ : 1;
+
+    const uint32_t intervalMs =
+        static_cast<uint32_t>((distance * MS_PER_SECOND) / actionSpeed) / steps + 1;
+    const int64_t downTime = GetMonotonicTimeMillis();
+    if (!proxy->InjectTouchEvent(
+        INJECT_ACTION_DOWN, static_cast<float>(startx), static_cast<float>(starty), downTime, downTime)) {
+        HILOG_ERROR("Driver::Drag inject DOWN failed");
+        return;
+    }
+    DelayMs(options.longClickHoldMs_);
+
+    for (uint16_t step = 1; step < steps; step++) {
+        const float pointX = startx + (distX * step) / steps;
+        const float pointY = starty + (distY * step) / steps;
+        if (!proxy->InjectTouchEvent(INJECT_ACTION_MOVE, pointX, pointY, downTime, GetMonotonicTimeMillis())) {
+            HILOG_ERROR("Driver::Drag inject MOVE failed");
+            break;
+        }
+        DelayMs(intervalMs);
+    }
+
+    if (!proxy->InjectTouchEvent(
+        INJECT_ACTION_UP, static_cast<float>(endx), static_cast<float>(endy), downTime, GetMonotonicTimeMillis())) {
+        HILOG_ERROR("Driver::Drag inject UP failed");
+    }
+}
+
 void Driver::Swipe(int startx, int starty, int endx, int endy, uint32_t speed)
 {
-    HILOG_DEBUG("Driver::Swipe from (%d, %d) to (%d, %d), speed:%d", startx, starty, endx, endy, speed);
     std::vector<Ace::TouchEvent> swipeEvents;
     int64_t currentTimeMillis = getCurrentTimeMillis();
 
@@ -450,7 +665,7 @@ void Driver::Swipe(int startx, int starty, int endx, int endy, uint32_t speed)
     const int distanceX = endx - startx;
     const int distanceY = endy - starty;
     const int distance = sqrt(distanceX * distanceX + distanceY * distanceY);
-    const uint32_t timeCostMs = (uint32_t)((distance * 1000) / swipeSpeed);
+    const uint32_t timeCostMs = (uint32_t)((distance * MS_PER_SECOND) / swipeSpeed);
 
     if (distance < 1) {
         HILOG_ERROR("Driver::Swipe ignored. distance value is illegal");
@@ -466,8 +681,8 @@ void Driver::Swipe(int startx, int starty, int endx, int endy, uint32_t speed)
 
         Ace::TouchEvent moveEvent;
         moveEvent = moveEvent.UpdatePointers();
-        PackagingEvent(moveEvent, TimeStamp(currentTimeMillis + timeOffsetMs),
-            Ace::TouchType::MOVE, { pointX, pointY });
+        PackagingEvent(
+            moveEvent, TimeStamp(currentTimeMillis + timeOffsetMs), Ace::TouchType::MOVE, { pointX, pointY });
         swipeEvents.push_back(moveEvent);
     }
 
@@ -611,6 +826,77 @@ void Driver::Fling(UiDirection direction, uint32_t speed)
     flingEvents.push_back(upEvent);
 
     uiContent->ProcessBasicEvent(flingEvents);
+}
+
+bool Driver::ScreenCapture(const std::string& path, const Rect& rect)
+{
+    auto proxy = ScreenCaptureProxy::GetInstance();
+    if (proxy == nullptr) {
+        HILOG_ERROR("Driver::ScreenCapture proxy is null");
+        return false;
+    }
+
+    if (HasScreenCaptureRect(rect)) {
+        int32_t errCode = ERR_OK;
+        const auto displaySize = GetDisplaySize(rect.displayId, &errCode);
+        if (errCode != ERR_OK) {
+            HILOG_ERROR("Driver::ScreenCapture failed: get display size failed, displayId=%d, errCode=%d",
+                rect.displayId, errCode);
+            return false;
+        }
+        if (!IsScreenCaptureRectValid(rect, displaySize)) {
+            HILOG_ERROR("Driver::ScreenCapture failed: code=%d, message=%s, rect=[%d,%d,%d,%d], displaySize=[%d,%d]",
+                SCREEN_CAPTURE_INTERNAL_ERROR, SCREEN_CAPTURE_INTERNAL_ERROR_MSG, rect.left, rect.top, rect.right,
+                rect.bottom, displaySize.x, displaySize.y);
+            return false;
+        }
+    }
+    const bool result = proxy->CaptureScreen(path, rect);
+    if (!result) {
+        HILOG_ERROR("Driver::ScreenCapture failed: proxy capture returned false, path=%s", path.c_str());
+    }
+    return result;
+}
+
+void Driver::SetDisplayRotation(DisplayRotation rotation)
+{
+    auto displayInterface = DisplayInterface::GetInstance();
+    if (displayInterface == nullptr) {
+        HILOG_ERROR("Driver::SetDisplayRotation failed: DisplayInterface is null");
+        return;
+    }
+    displayInterface->SetDisplayRotation(rotation);
+}
+
+Point Driver::GetDisplaySize(int displayId, int32_t* errCode) const
+{
+    if (displayId != 0) {
+        SetErrCode(errCode, ERROR_INVALID_DISPLAY_ID);
+        HILOG_ERROR("Driver::GetDisplaySize failed: multi-display is not supported yet, invalid displayId");
+        return Point { 0, 0 };
+    }
+    auto uiContent = GetUIContent();
+    if (uiContent == nullptr) {
+        SetErrCode(errCode, ERR_INTERNAL);
+        HILOG_ERROR("Driver::GetDisplaySize failed: UIContent is null");
+        return Point { 0, 0 };
+    }
+    auto displayInfo = uiContent->GetDisplayInfo();
+    if (displayInfo == nullptr) {
+        SetErrCode(errCode, ERR_INTERNAL);
+        HILOG_ERROR("Driver::GetDisplaySize failed: DisplayInfo is null");
+        return Point { 0, 0 };
+    }
+
+    int32_t width = displayInfo->GetWidth();
+    int32_t height = displayInfo->GetHeight();
+    if (width <= 0 || height <= 0) {
+        SetErrCode(errCode, ERR_INTERNAL);
+        return Point { 0, 0 };
+    }
+
+    SetErrCode(errCode, ERR_OK);
+    return Point { width, height };
 }
 
 void Component::Click()

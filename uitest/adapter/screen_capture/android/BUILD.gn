@@ -1,0 +1,64 @@
+# Copyright (c) Huawei Technologies Co., Ltd. 2026-2026. All rights reserved.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/ohos.gni")
+import("//test/testfwk/arkxtest/uitest/uitest.gni")
+
+java_library("screencapture_android_java") {
+  java_files = [
+    "${uitest_adapter_screen_capture_android_java_path}/CurrentActivityHolder.java",
+    "${uitest_adapter_screen_capture_android_java_path}/ScreenCaptureHelper.java",
+    "${uitest_adapter_screen_capture_android_java_path}/ScreenCaptureHelperBase.java",
+  ]
+  subsystem_name = "plugins"
+  part_name = "screencapture"
+}
+
+ohos_combine_jars("screencapture_java") {
+  deps = [ ":screencapture_android_java" ]
+  subsystem_name = "plugins"
+  part_name = "screencapture"
+  jar_path = "${root_out_dir}/plugins/uitest/uitest_screencapture_android.jar"
+}
+
+ohos_source_set("screencapture_android_jni") {
+  sources = [
+    "${uitest_adapter_screen_capture_android_path}/java/jni/screen_capture_jni.cpp",
+    "${uitest_adapter_screen_capture_android_path}/java/screen_capture_delegate.cpp",
+    "${uitest_adapter_screen_capture_android_path}/register_java_plugin.cpp",
+    "${uitest_adapter_screen_capture_path}/screen_capture_proxy.cpp",
+  ]
+
+  defines = [ "ANDROID_PLATFORM" ]
+
+  deps = [
+    ":screencapture_java",
+    "//foundation/arkui/ace_engine/adapter/android/build:libarkui_android",
+  ]
+
+  public_deps = [ "//plugins/interfaces/native:ace_plugin_util_android" ]
+
+  include_dirs = [
+    "//foundation/arkui/ace_engine/",
+    "//foundation/arkui/ace_engine/frameworks",
+    "//foundation/arkui/ace_engine/interfaces/inner_api/ace_kit/include",
+    "//plugins/interfaces/native",
+    "${uitest_adapter_screen_capture_path}",
+    "${uitest_adapter_screen_capture_android_path}/java",
+    "${uitest_core_path}",
+  ]
+
+  # Allow this to be used as a public dependency
+  subsystem_name = "arkxtest"
+  part_name = "uitest"
+}

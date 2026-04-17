@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Huawei Device Co., Ltd.
+ * Copyright (c) 2023-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,14 +17,185 @@
 
 #include "../core/driver.h"
 
+#include <atomic>
+
+#ifdef IOS_PLATFORM
+#include <dispatch/dispatch.h>
+#endif
+
 namespace OHOS::UiTest {
 
 using namespace std;
 using namespace LibN;
+
 static napi_ref OnRef = nullptr;
 static napi_ref PmRef = nullptr;
 static constexpr const int32_t MAX_FINGERS = 10;
 static constexpr const int32_t MAX_STEPS = 1000;
+static constexpr int32_t MIN_LONG_CLICK_DURATION_MS = 1500;
+
+#ifdef IOS_PLATFORM
+namespace {
+constexpr const char* PENDING_API_PROP = "__uitest_pending_api__";
+
+struct ScreenCapturePromiseContext {
+    ScreenCapturePromiseContext(napi_env env, napi_value thisVar) : thisRef(NVal(env, thisVar)) {}
+
+    napi_deferred deferred = nullptr;
+    NRef thisRef;
+    napi_threadsafe_function tsfn = nullptr;
+    std::atomic_bool resultQueued = false;
+};
+
+static void ResolveScreenCaptureDeferred(napi_env env, ScreenCapturePromiseContext* asyncContext, bool result);
+
+static void ClearPendingApiForScreenCapture(napi_env env, NVal& thisVal)
+{
+    if (thisVal.TypeIs(napi_object)) {
+        napi_set_named_property(env, thisVal.val_, PENDING_API_PROP, NVal::CreateUTF8String(env, "").val_);
+    }
+}
+
+static void ResolveScreenCaptureDeferred(napi_env env, ScreenCapturePromiseContext* asyncContext, bool result)
+{
+    if (env == nullptr || asyncContext == nullptr || asyncContext->deferred == nullptr) {
+        return;
+    }
+    NVal thisVal = asyncContext->thisRef.Deref(env);
+    ClearPendingApiForScreenCapture(env, thisVal);
+    napi_resolve_deferred(env, asyncContext->deferred, NVal::CreateBool(env, result).val_);
+    asyncContext->deferred = nullptr;
+}
+
+static bool CheckAndSetPendingApiForScreenCapture(napi_env env, NVal& thisVal, const string& procedureName)
+{
+    if (!thisVal.TypeIs(napi_object)) {
+        return true;
+    }
+    if (!thisVal.HasProp(PENDING_API_PROP)) {
+        napi_set_named_property(env, thisVal.val_, PENDING_API_PROP, NVal::CreateUTF8String(env, procedureName).val_);
+        return true;
+    }
+
+    auto pendingVal = thisVal.GetProp(PENDING_API_PROP);
+    if (!pendingVal.TypeIs(napi_string)) {
+        napi_set_named_property(env, thisVal.val_, PENDING_API_PROP, NVal::CreateUTF8String(env, procedureName).val_);
+        return true;
+    }
+
+    auto [succ, str, len] = pendingVal.ToUTF8String();
+    if (!(succ && len > 0)) {
+        napi_set_named_property(env, thisVal.val_, PENDING_API_PROP, NVal::CreateUTF8String(env, procedureName).val_);
+        return true;
+    }
+
+    string pendingFunc(str.get(), len);
+    auto errGen = [pendingFunc, procedureName]() {
+        return make_tuple(E_AWAIT, FormatConcurrentErrMsg(pendingFunc, procedureName));
+    };
+    NError(errGen).ThrowErr(env);
+    return false;
+}
+
+static napi_value NoopThreadsafeCallback(napi_env env, napi_callback_info info)
+{
+    return nullptr;
+}
+
+static void FinalizeScreenCaptureThreadsafeFunction(napi_env env, void* finalizeData, void* finalizeHint)
+{
+    auto* asyncContext = static_cast<ScreenCapturePromiseContext*>(finalizeData);
+    if (asyncContext != nullptr && asyncContext->deferred != nullptr && !asyncContext->resultQueued.load()) {
+        ResolveScreenCaptureDeferred(env, asyncContext, false);
+    }
+    delete asyncContext;
+}
+
+static void ResolveScreenCapturePromise(napi_env env, napi_value jsCallback, void* context, void* data)
+{
+    auto* asyncContext = static_cast<ScreenCapturePromiseContext*>(context);
+    unique_ptr<bool> result(static_cast<bool*>(data));
+    if (env == nullptr || asyncContext == nullptr) {
+        return;
+    }
+
+    ResolveScreenCaptureDeferred(env, asyncContext, result != nullptr && *result);
+}
+
+static bool CreateScreenCapturePromiseContext(napi_env env, napi_value thisVar, NVal& thisValue,
+    const string& procedureName, ScreenCapturePromiseContext*& asyncContext, napi_value& promise)
+{
+    if (!CheckAndSetPendingApiForScreenCapture(env, thisValue, procedureName)) {
+        HILOG_ERROR("ScreenCapture NAPI create context blocked by pending api");
+        return false;
+    }
+
+    asyncContext = new (std::nothrow) ScreenCapturePromiseContext(env, thisVar);
+    if (asyncContext == nullptr) {
+        HILOG_ERROR("ScreenCapture NAPI create context failed: asyncContext is null");
+        ClearPendingApiForScreenCapture(env, thisValue);
+        return false;
+    }
+
+    napi_status status = napi_create_promise(env, &asyncContext->deferred, &promise);
+    if (status != napi_ok) {
+        HILOG_ERROR("ScreenCapture NAPI create promise failed, status=%{public}d", status);
+        ClearPendingApiForScreenCapture(env, thisValue);
+        delete asyncContext;
+        asyncContext = nullptr;
+        return false;
+    }
+
+    napi_value resourceName = NVal::CreateUTF8String(env, procedureName).val_;
+    napi_value noopCallback = nullptr;
+    status = napi_create_function(env, procedureName.c_str(), NAPI_AUTO_LENGTH, NoopThreadsafeCallback, nullptr,
+        &noopCallback);
+    if (status != napi_ok) {
+        HILOG_ERROR("ScreenCapture NAPI create noop callback failed, status=%{public}d", status);
+        ClearPendingApiForScreenCapture(env, thisValue);
+        delete asyncContext;
+        asyncContext = nullptr;
+        return false;
+    }
+
+    status = napi_create_threadsafe_function(env, noopCallback, nullptr, resourceName, 0, 1, nullptr,
+        FinalizeScreenCaptureThreadsafeFunction, asyncContext, ResolveScreenCapturePromise, &asyncContext->tsfn);
+    if (status != napi_ok) {
+        HILOG_ERROR("ScreenCapture NAPI create tsfn failed, status=%{public}d", status);
+        ClearPendingApiForScreenCapture(env, thisValue);
+        delete asyncContext;
+        asyncContext = nullptr;
+        return false;
+    }
+    return true;
+}
+
+static void DispatchScreenCaptureToMainThread(Driver* driver, std::string pathStr, Rect rect,
+    ScreenCapturePromiseContext* asyncContext)
+{
+    auto pathCopy = std::move(pathStr);
+    auto rectCopy = rect;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        const bool captureResult = driver->ScreenCapture(pathCopy, rectCopy);
+        auto* result = new (std::nothrow) bool(captureResult);
+        if (result == nullptr) {
+            HILOG_ERROR("ScreenCapture NAPI allocate result failed");
+            napi_release_threadsafe_function(asyncContext->tsfn, napi_tsfn_release);
+            return;
+        }
+
+        napi_status callStatus = napi_call_threadsafe_function(asyncContext->tsfn, result, napi_tsfn_nonblocking);
+        if (callStatus == napi_ok) {
+            asyncContext->resultQueued.store(true);
+        } else {
+            HILOG_ERROR("ScreenCapture NAPI queue result to JS failed, status=%{public}d", callStatus);
+            delete result;
+        }
+        napi_release_threadsafe_function(asyncContext->tsfn, napi_tsfn_release);
+    });
+}
+} // namespace
+#endif
 
 class ArgsCls {
 public:
@@ -1369,6 +1540,48 @@ static bool GetArg(napi_env env, napi_value thisValue, int number, shared_ptr<Ar
     return true;
 }
 
+static bool GetIntegerArgForDrag(napi_env env, napi_value thisValue, int32_t &number)
+{
+    NVal argVal(env, thisValue);
+    if (!argVal.TypeIs(napi_number)) {
+        return false;
+    }
+
+    auto [doubleSucc, doubleValue] = argVal.ToDouble();
+    auto [intSucc, intValue] = argVal.ToInt32();
+    if (!doubleSucc || !intSucc || static_cast<double>(intValue) != doubleValue) {
+        return false;
+    }
+    number = intValue;
+    return true;
+}
+
+static bool GetCoordinateArgForDrag(napi_env env, napi_value thisValue, int number, shared_ptr<ArgsInfo> argsInfo)
+{
+    int32_t coordinate = 0;
+    if (!GetIntegerArgForDrag(env, thisValue, coordinate)) {
+        return false;
+    }
+
+    switch (number) {
+        case NARG_POS::FIRST:
+            argsInfo->startx = coordinate;
+            break;
+        case NARG_POS::SECOND:
+            argsInfo->starty = coordinate;
+            break;
+        case NARG_POS::THIRD:
+            argsInfo->endx = coordinate;
+            break;
+        case NARG_POS::FOURTH:
+            argsInfo->endy = coordinate;
+            break;
+        default:
+            return false;
+    }
+    return true;
+}
+
 static bool GetArgs(napi_env env, NFuncArg &funcArg, shared_ptr<ArgsInfo> argsInfo)
 {
     bool retFirst, retSecond, retThird, retFourth;
@@ -1382,6 +1595,198 @@ static bool GetArgs(napi_env env, NFuncArg &funcArg, shared_ptr<ArgsInfo> argsIn
         retFifth = GetArg(env, funcArg[NARG_POS::FIFTH], NARG_POS::FIFTH, argsInfo);
     }
     return retFirst && retSecond && retThird && retFourth && retFifth;
+}
+
+static bool ParseDragArgs(napi_env env, NFuncArg &funcArg, shared_ptr<ArgsInfo> argsInfo)
+{
+    const bool validCoordinates = GetCoordinateArgForDrag(env, funcArg[NARG_POS::FIRST], NARG_POS::FIRST, argsInfo) &&
+        GetCoordinateArgForDrag(env, funcArg[NARG_POS::SECOND], NARG_POS::SECOND, argsInfo) &&
+        GetCoordinateArgForDrag(env, funcArg[NARG_POS::THIRD], NARG_POS::THIRD, argsInfo) &&
+        GetCoordinateArgForDrag(env, funcArg[NARG_POS::FOURTH], NARG_POS::FOURTH, argsInfo);
+    if (!validCoordinates || funcArg.GetArgc() != NARG_CNT::FIVE) {
+        return validCoordinates && argsInfo->startx >= 0 && argsInfo->starty >= 0 &&
+            argsInfo->endx >= 0 && argsInfo->endy >= 0;
+    }
+
+    if (argsInfo->startx < 0 || argsInfo->starty < 0 || argsInfo->endx < 0 || argsInfo->endy < 0) {
+        return false;
+    }
+
+    NVal speedVal(env, funcArg[NARG_POS::FIFTH]);
+    if (speedVal.TypeIs(napi_undefined) || speedVal.TypeIs(napi_null)) {
+        return true;
+    }
+
+    int32_t speed = 0;
+    const bool success = GetIntegerArgForDrag(env, funcArg[NARG_POS::FIFTH], speed);
+    if (!success || speed < 0) {
+        return false;
+    }
+    argsInfo->speed = speed;
+    return true;
+}
+
+static bool GetRectArg(napi_env env, napi_value value, Rect &rect)
+{
+    NVal rectVal(env, value);
+    if (!rectVal.TypeIs(napi_object)) {
+        return false;
+    }
+    auto [okLeft, left] = rectVal.GetProp("left").ToInt32();
+    auto [okTop, top] = rectVal.GetProp("top").ToInt32();
+    auto [okRight, right] = rectVal.GetProp("right").ToInt32();
+    auto [okBottom, bottom] = rectVal.GetProp("bottom").ToInt32();
+    auto [okDisplayId, displayId] = rectVal.GetProp("displayId").ToInt32();
+    if (!okLeft || !okTop || !okRight || !okBottom) {
+        return false;
+    }
+    if (left <= 0 || top <= 0 || right <= 0 || bottom <= 0) {
+        return false;
+    }
+    if (displayId < 0) {
+        return false;
+    }
+    rect.left = left;
+    rect.top = top;
+    rect.right = right;
+    rect.bottom = bottom;
+    rect.displayId = okDisplayId ? displayId : 0;
+    return true;
+}
+
+static bool ParseScreenCaptureArgs(napi_env env, NFuncArg& funcArg, std::string& pathStr, Rect& rect)
+{
+    auto [succPath, path, ignore] = NVal(env, funcArg[NARG_POS::FIRST]).ToUTF8String();
+    if (!succPath) {
+        HILOG_ERROR("Invalid path");
+        NError(E_PARAMS).ThrowErr(env);
+        return false;
+    }
+    pathStr = std::string(path.get());
+    if (funcArg.GetArgc() != NARG_CNT::TWO) {
+        return true;
+    }
+
+    NVal rectVal(env, funcArg[NARG_POS::SECOND]);
+    if (rectVal.TypeIs(napi_undefined) || rectVal.TypeIs(napi_null)) {
+        return true;
+    }
+    if (!GetRectArg(env, rectVal.val_, rect)) {
+        HILOG_ERROR("Invalid rect");
+        NError(E_PARAMS).ThrowErr(env);
+        return false;
+    }
+    return true;
+}
+
+#ifdef IOS_PLATFORM
+static napi_value ScheduleScreenCapture(napi_env env, napi_value thisVar, Driver* driver,
+    const std::string& pathStr, const Rect& rect)
+{
+    NVal thisValue(env, thisVar);
+    string procedureName = "ScreenCapture";
+    ScreenCapturePromiseContext* asyncContext = nullptr;
+    napi_value promise = nullptr;
+    if (!CreateScreenCapturePromiseContext(env, thisVar, thisValue, procedureName, asyncContext, promise)) {
+        HILOG_ERROR("ScreenCapture NAPI schedule failed during context creation");
+        return nullptr;
+    }
+
+    DispatchScreenCaptureToMainThread(driver, pathStr, rect, asyncContext);
+    return promise;
+}
+#else
+static napi_value ScheduleDefaultScreenCapture(napi_env env, napi_value thisVar, Driver* driver,
+    const std::string& pathStr, const Rect& rect)
+{
+    static bool ret = false;
+    auto cbExec = [driver, pathStr, rect]() -> NError {
+        ret = driver->ScreenCapture(pathStr, rect);
+        return NError(ERRNO_NOERR);
+    };
+    auto cbCompl = [](napi_env env, NError err) -> NVal {
+        if (err) {
+            return { env, err.GetNapiErr(env) };
+        }
+        return NVal::CreateBool(env, ret);
+    };
+
+    NVal thisValue(env, thisVar);
+    string procedureName = "ScreenCapture";
+    return NAsyncWorkPromise(env, thisValue).Schedule(procedureName, cbExec, cbCompl).val_;
+}
+#endif
+
+static bool ParseWaitForComponentArgs(napi_env env, NFuncArg& funcArg, On*& on, int32_t& waitMs)
+{
+    NVal onVal(env, funcArg[NARG_POS::FIRST]);
+    if (onVal.TypeIs(napi_undefined) || onVal.TypeIs(napi_null) || !onVal.TypeIs(napi_object)) {
+        HILOG_ERROR("WaitForComponent invalid on");
+        NError(E_PARAMS).ThrowErr(env);
+        return false;
+    }
+
+    on = NClass::GetEntityOf<On>(env, onVal.val_);
+    if (!on) {
+        HILOG_ERROR("WaitForComponent cannot get entity of on");
+        NError(E_PARAMS).ThrowErr(env);
+        return false;
+    }
+
+    NVal timeVal(env, funcArg[NARG_POS::SECOND]);
+    if (!timeVal.TypeIs(napi_number)) {
+        HILOG_ERROR("Invalid timeMs type");
+        NError(E_PARAMS).ThrowErr(env);
+        return false;
+    }
+
+    auto [okDouble, waitMsDouble] = timeVal.ToDouble();
+    auto [okTime, waitMsInt] = timeVal.ToInt32();
+    if (!okDouble || !okTime || static_cast<double>(waitMsInt) != waitMsDouble || waitMsInt < 0) {
+        HILOG_ERROR("Invalid timeMs");
+        NError(E_PARAMS).ThrowErr(env);
+        return false;
+    }
+    waitMs = waitMsInt;
+    return true;
+}
+
+static bool CreateComponentReference(napi_env env, napi_value& jsComponent, napi_ref& ref)
+{
+    jsComponent = NClass::InstantiateClass(env, ComponentNExporter::COMPONENT_CLASS_NAME, {});
+    if (!jsComponent) {
+        HILOG_ERROR("Failed to instantiate jsComponent class");
+        return false;
+    }
+
+    napi_status status = napi_create_reference(env, jsComponent, 1, &ref);
+    if (status != napi_ok || ref == nullptr) {
+        HILOG_ERROR("Failed to create jsComponent reference");
+        NError(EIO).ThrowErr(env);
+        return false;
+    }
+    return true;
+}
+
+static NVal BuildComponentResultAndReleaseRef(napi_env env, napi_ref ref, unique_ptr<Component> component)
+{
+    if (!component) {
+        napi_delete_reference(env, ref);
+        return NVal::CreateUndefined(env);
+    }
+
+    napi_value jsComponent = nullptr;
+    napi_status status = napi_get_reference_value(env, ref, &jsComponent);
+    napi_delete_reference(env, ref);
+    if (status != napi_ok || jsComponent == nullptr) {
+        HILOG_ERROR("Failed to get jsComponent reference value");
+        return { env, NError(EIO).GetNapiErr(env) };
+    }
+    if (!NClass::SetEntityFor<Component>(env, jsComponent, move(component))) {
+        HILOG_ERROR("Failed to set Component entity");
+        return { env, NError(E_PARAMS).GetNapiErr(env) };
+    }
+    return NVal(env, jsComponent);
 }
 
 napi_value DriverNExporter::InjectMultiPointerAction(napi_env env, napi_callback_info info)
@@ -1430,6 +1835,100 @@ napi_value DriverNExporter::InjectMultiPointerAction(napi_env env, napi_callback
 
     NVal thisVar(env, funcArg.GetThisVar());
     string procedureName = "InjectMultiPointerAction";
+    return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
+}
+
+napi_value DriverNExporter::WaitForIdle(napi_env env, napi_callback_info info)
+{
+    NFuncArg funcArg(env, info);
+    if (!funcArg.InitArgs(NARG_CNT::TWO)) {
+        HILOG_ERROR("DriverNExporter::WaitForIdle Number of arguments unmatched");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
+    }
+
+    auto driver = NClass::GetEntityOf<Driver>(env, funcArg.GetThisVar());
+    if (!driver) {
+        HILOG_ERROR("Cannot get entity of driver");
+        return nullptr;
+    }
+
+    auto [resGetFirstArg, idleTime] = NVal(env, funcArg[NARG_POS::FIRST]).ToInt32();
+    if (!resGetFirstArg || idleTime < 0) {
+        HILOG_ERROR("Invalid idleTime");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
+    }
+    auto [resGetSecondArg, timeout] = NVal(env, funcArg[NARG_POS::SECOND]).ToInt32();
+    if (!resGetSecondArg || timeout < 0) {
+        HILOG_ERROR("Invalid timeout");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
+    }
+
+    static bool ret = false;
+    auto cbExec = [driver, idle = static_cast<uint32_t>(idleTime), tout = static_cast<uint32_t>(timeout)]() -> NError {
+        ret = driver->WaitForIdle(idle, tout);
+        return NError(ERRNO_NOERR);
+    };
+
+    auto cbCompl = [](napi_env env, NError err) -> NVal {
+        if (err) {
+            return { env, err.GetNapiErr(env) };
+        }
+        return NVal::CreateBool(env, ret);
+    };
+
+    NVal thisVar(env, funcArg.GetThisVar());
+    string procedureName = "WaitForIdle";
+    return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
+}
+
+napi_value DriverNExporter::GetDisplaySize(napi_env env, napi_callback_info info)
+{
+    NFuncArg funcArg(env, info);
+    if (!funcArg.InitArgs(NARG_CNT::ZERO, NARG_CNT::ONE)) {
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
+    }
+    int32_t displayId = -1;
+    if (funcArg.GetArgc() == 1) {
+        auto [succ, id] = NVal(env, funcArg[NARG_POS::FIRST]).ToInt32();
+        if (!succ) {
+            NError(E_PARAMS).ThrowErr(env);
+            return nullptr;
+        }
+        displayId = id;
+    } else if (funcArg.GetArgc() == 0) {
+        displayId = 0;
+    }
+    auto driver = NClass::GetEntityOf<Driver>(env, funcArg.GetThisVar());
+    if (!driver) {
+        NError(E_DESTROYED).ThrowErr(env);
+        return nullptr;
+    }
+    auto pt = std::make_shared<Point>();
+    auto cbExec = [driver, displayId, pt]() -> NError {
+        int32_t errCode = ERR_OK;
+        *pt = driver->GetDisplaySize(displayId, &errCode);
+        if (errCode == ERROR_INVALID_DISPLAY_ID) {
+            return NError(E_INVALID_PARAM);
+        } else if (errCode == ERR_INTERNAL) {
+            return NError(E_DESTROYED);
+        }
+        return NError(ERRNO_NOERR);
+    };
+    auto cbCompl = [pt](napi_env env, NError err) -> NVal {
+        if (err) {
+            return { env, err.GetNapiErr(env) };
+        }
+        NVal obj = NVal::CreateObject(env);
+        obj.AddProp("x", NVal::CreateInt32(env, pt->x).val_);
+        obj.AddProp("y", NVal::CreateInt32(env, pt->y).val_);
+        return { obj };
+    };
+    NVal thisVar(env, funcArg.GetThisVar());
+    string procedureName = "GetDisplaySize";
     return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
 }
 
@@ -1569,6 +2068,213 @@ napi_value DriverNExporter::Swipe(napi_env env, napi_callback_info info)
 
     NVal thisVar(env, funcArg.GetThisVar());
     string procedureName = "Swipe";
+    return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
+}
+
+napi_value DriverNExporter::Drag(napi_env env, napi_callback_info info)
+{
+    NFuncArg funcArg(env, info);
+    if (!funcArg.InitArgs(NARG_CNT::FOUR, NARG_CNT::FIVE)) {
+        HILOG_ERROR("Drag Number of arguments unmatched");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
+    }
+
+    auto driver = NClass::GetEntityOf<Driver>(env, funcArg.GetThisVar());
+    if (!driver) {
+        HILOG_ERROR("Cannot get entity of driver");
+        return nullptr;
+    }
+
+    auto argsInfo = make_shared<ArgsInfo>();
+    if (!ParseDragArgs(env, funcArg, argsInfo)) {
+        HILOG_ERROR("Drag Invalid arguments");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
+    }
+
+    auto cbExec = [driver, argsInfo]() -> NError {
+        driver->Drag(argsInfo->startx, argsInfo->starty, argsInfo->endx, argsInfo->endy, argsInfo->speed);
+        return NError(ERRNO_NOERR);
+    };
+
+    auto cbCompl = [](napi_env env, NError err) -> NVal {
+        if (err) {
+            return { env, err.GetNapiErr(env) };
+        }
+        return NVal::CreateUndefined(env);
+    };
+
+    NVal thisVar(env, funcArg.GetThisVar());
+    string procedureName = "Drag";
+    return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
+}
+
+napi_value DriverNExporter::ScreenCapture(napi_env env, napi_callback_info info)
+{
+    NFuncArg funcArg(env, info);
+    if (!funcArg.InitArgs(NARG_CNT::ONE, NARG_CNT::TWO)) {
+        HILOG_ERROR("ScreenCapture Number of arguments unmatched");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
+    }
+    auto driver = NClass::GetEntityOf<Driver>(env, funcArg.GetThisVar());
+    if (!driver) {
+        HILOG_ERROR("Cannot get entity of driver");
+        return nullptr;
+    }
+
+    Rect rect { 0, 0, 0, 0, 0 };
+    std::string pathStr;
+    if (!ParseScreenCaptureArgs(env, funcArg, pathStr, rect)) {
+        return nullptr;
+    }
+
+#ifdef IOS_PLATFORM
+    return ScheduleScreenCapture(env, funcArg.GetThisVar(), driver, pathStr, rect);
+#else
+    return ScheduleDefaultScreenCapture(env, funcArg.GetThisVar(), driver, pathStr, rect);
+#endif
+}
+
+napi_value DriverNExporter::SetDisplayRotation(napi_env env, napi_callback_info info)
+{
+    HILOG_DEBUG("SetDisplayRotation begin");
+    NFuncArg funcArg(env, info);
+    if (!funcArg.InitArgs(NARG_CNT::ONE)) {
+        HILOG_ERROR("SetDisplayRotation Number of arguments unmatched");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
+    }
+
+    auto driver = NClass::GetEntityOf<Driver>(env, funcArg.GetThisVar());
+    if (!driver) {
+        HILOG_ERROR("Cannot get entity of driver");
+        return nullptr;
+    }
+
+    auto rotationTuple = NVal(env, funcArg[NARG_POS::FIRST]).ToInt32();
+    auto rotationOk = std::get<0>(rotationTuple);
+    auto rotationValue = std::get<1>(rotationTuple);
+    if (!rotationOk || rotationValue < 0) {
+        HILOG_ERROR("Invalid rotation");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
+    }
+
+    auto cbExec = [driver, rotationValue]() -> NError {
+        driver->SetDisplayRotation(static_cast<DisplayRotation>(rotationValue));
+        return NError(ERRNO_NOERR);
+    };
+
+    auto cbCompl = [](napi_env env, NError err) -> NVal {
+        if (err) {
+            return { env, err.GetNapiErr(env) };
+        }
+        return NVal::CreateUndefined(env);
+    };
+
+    NVal thisVar(env, funcArg.GetThisVar());
+    string procedureName = "SetDisplayRotation";
+    return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
+}
+
+static bool GetPointArg(napi_env env, napi_value value, Point& point)
+{
+    NVal pointVal(env, value);
+    if (!pointVal.TypeIs(napi_object)) {
+        return false;
+    }
+    auto [okX, x] = pointVal.GetProp("x").ToInt32();
+    auto [okY, y] = pointVal.GetProp("y").ToInt32();
+    if (!okX || !okY || x < 0 || y < 0) {
+        return false;
+    }
+    point.x = x;
+    point.y = y;
+    return true;
+}
+
+static bool ParseIsComponentPresentArgs(napi_env env, NFuncArg& funcArg, On*& on, Point& point, int32_t& durationMs)
+{
+    NVal valOn(env, funcArg[NARG_POS::FIRST]);
+    if (!valOn.TypeIs(napi_object)) {
+        HILOG_ERROR("Invalid valOn");
+        NError(E_INVALID_PARAM).ThrowErr(env);
+        return false;
+    }
+    on = NClass::GetEntityOf<On>(env, valOn.val_);
+    if (!on) {
+        HILOG_ERROR("Cannot get entity of on");
+        NError(E_DESTROYED).ThrowErr(env);
+        return false;
+    }
+
+    if (!GetPointArg(env, funcArg[NARG_POS::SECOND], point)) {
+        HILOG_ERROR("Invalid point");
+        NError(E_INVALID_PARAM).ThrowErr(env);
+        return false;
+    }
+
+    durationMs = MIN_LONG_CLICK_DURATION_MS;
+    if (funcArg.GetArgc() == NARG_CNT::THREE) {
+        NVal durationVal(env, funcArg[NARG_POS::THIRD]);
+        if (!durationVal.TypeIs(napi_undefined) && !durationVal.TypeIs(napi_null)) {
+            auto [okDuration, duration] = durationVal.ToInt32();
+            if (!okDuration) {
+                HILOG_ERROR("Invalid duration");
+                NError(E_INVALID_PARAM).ThrowErr(env);
+                return false;
+            }
+            durationMs = duration;
+        }
+    }
+
+    if (durationMs < MIN_LONG_CLICK_DURATION_MS) {
+        HILOG_ERROR("Invalid durationMs: %d", durationMs);
+        NError(E_INVALID_PARAM).ThrowErr(env);
+        return false;
+    }
+    return true;
+}
+
+napi_value DriverNExporter::IsComponentPresentWhenLongClick(napi_env env, napi_callback_info info)
+{
+    NFuncArg funcArg(env, info);
+    if (!funcArg.InitArgs(NARG_CNT::TWO, NARG_CNT::THREE)) {
+        HILOG_ERROR("IsComponentPresentWhenLongClick Number of arguments unmatched");
+        NError(E_INVALID_PARAM).ThrowErr(env);
+        return nullptr;
+    }
+
+    auto driver = NClass::GetEntityOf<Driver>(env, funcArg.GetThisVar());
+    if (!driver) {
+        HILOG_ERROR("Cannot get entity of driver");
+        return nullptr;
+    }
+
+    On* on = nullptr;
+    Point point;
+    int32_t durationMs = 0;
+    if (!ParseIsComponentPresentArgs(env, funcArg, on, point, durationMs)) {
+        return nullptr;
+    }
+
+    static bool ret = false;
+    auto cbExec = [driver, on, point, durationMs]() -> NError {
+        ret = driver->IsComponentPresentWhenLongClick(*on, point, durationMs);
+        return NError(ERRNO_NOERR);
+    };
+
+    auto cbCompl = [](napi_env env, NError err) -> NVal {
+        if (err) {
+            return { env, err.GetNapiErr(env) };
+        }
+        return NVal::CreateBool(env, ret);
+    };
+
+    NVal thisVar(env, funcArg.GetThisVar());
+    string procedureName = "IsComponentPresentWhenLongClick";
     return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
 }
 
@@ -1890,6 +2596,45 @@ napi_value DriverNExporter::FindComponent(napi_env env, napi_callback_info info)
     return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
 }
 
+napi_value DriverNExporter::WaitForComponent(napi_env env, napi_callback_info info)
+{
+    NFuncArg funcArg(env, info);
+    if (!funcArg.InitArgs(NARG_CNT::TWO)) {
+        HILOG_ERROR("WaitForComponent Number of arguments unmatched");
+        NError(E_PARAMS).ThrowErr(env);
+        return nullptr;
+    }
+    auto driver = NClass::GetEntityOf<Driver>(env, funcArg.GetThisVar());
+    On* on = nullptr;
+    int32_t waitMs = 0;
+    if (!driver || !ParseWaitForComponentArgs(env, funcArg, on, waitMs)) {
+        HILOG_ERROR("Invalid driver or arguments");
+        return nullptr;
+    }
+
+    napi_value jsComponent = nullptr;
+    napi_ref ref = nullptr;
+    if (!CreateComponentReference(env, jsComponent, ref)) {
+        return nullptr;
+    }
+    auto arg = make_shared<ArgsCls>();
+    auto cbExec = [driver, on, arg, waitMs]() -> NError {
+        arg->component = move(driver->WaitForComponent(*on, waitMs));
+        return NError(ERRNO_NOERR);
+    };
+
+    auto cbCompl = [ref, arg](napi_env env, NError err) -> NVal {
+        if (err) {
+            napi_delete_reference(env, ref);
+            return { env, err.GetNapiErr(env) };
+        }
+        return BuildComponentResultAndReleaseRef(env, ref, move(arg->component));
+    };
+    NVal thisVar(env, funcArg.GetThisVar());
+    string procedureName = "WaitForComponent";
+    return NAsyncWorkPromise(env, thisVar).Schedule(procedureName, cbExec, cbCompl).val_;
+}
+
 napi_value DriverNExporter::FindComponents(napi_env env, napi_callback_info info)
 {
     HILOG_DEBUG("FindComponents begin");
@@ -1970,14 +2715,22 @@ bool DriverNExporter::Export()
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_ASSERT_COMPONENT, DriverNExporter::AssertComponentExist),
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_FIND_COMPONENT, DriverNExporter::FindComponent),
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_FIND_COMPONENTS, DriverNExporter::FindComponents),
+        NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_WAIT_FOR_COMPONENT, DriverNExporter::WaitForComponent),
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_CLICK, DriverNExporter::Click),
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_DOUBLE_CLICK, DriverNExporter::DoubleClick),
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_LONG_CLICK, DriverNExporter::LongClick),
+        NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_DRAG, DriverNExporter::Drag),
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_SWIPE, DriverNExporter::Swipe),
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_FLING, DriverNExporter::Fling),
+        NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_SCREEN_CAPTURE, DriverNExporter::ScreenCapture),
+        NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_SET_DISPLAY_ROTATION, DriverNExporter::SetDisplayRotation),
+        NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_GET_DISPLAY_SIZE, DriverNExporter::GetDisplaySize),
+        NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_IS_COMPONENT_PRESENT_WHEN_LONG_CLICK,
+            DriverNExporter::IsComponentPresentWhenLongClick),
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_TRIGGER_KEY, DriverNExporter::TriggerKey),
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_TRIGGER_COMBINE_KEYS, DriverNExporter::TriggerCombineKeys),
         NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_INJECT_MULTI_POINTER_ACTION, DriverNExporter::InjectMultiPointerAction),
+        NVal::DeclareNapiFunction(DriverNExporter::FUNCTION_WAIT_FOR_IDLE, DriverNExporter::WaitForIdle),
     };
     auto [succ, classValue] = NClass::DefineClass(exports_.env_, DriverNExporter::DRIVER_CLASS_NAME, DriverInitializer,
         std::move(props));

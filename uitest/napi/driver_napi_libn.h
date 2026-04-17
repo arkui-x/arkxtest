@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Huawei Device Co., Ltd.
+ * Copyright (c) 2023-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -142,14 +142,21 @@ public:
     static napi_value AssertComponentExist(napi_env env, napi_callback_info info);
     static napi_value FindComponent(napi_env env, napi_callback_info info);
     static napi_value FindComponents(napi_env env, napi_callback_info info);
+    static napi_value WaitForComponent(napi_env env, napi_callback_info info);
     static napi_value Click(napi_env env, napi_callback_info info);
     static napi_value DoubleClick(napi_env env, napi_callback_info info);
     static napi_value LongClick(napi_env env, napi_callback_info info);
+    static napi_value Drag(napi_env env, napi_callback_info info);
     static napi_value Swipe(napi_env env, napi_callback_info info);
     static napi_value Fling(napi_env env, napi_callback_info info);
+    static napi_value ScreenCapture(napi_env env, napi_callback_info info);
+    static napi_value SetDisplayRotation(napi_env env, napi_callback_info info);
+    static napi_value GetDisplaySize(napi_env env, napi_callback_info info);
+    static napi_value IsComponentPresentWhenLongClick(napi_env env, napi_callback_info info);
     static napi_value TriggerKey(napi_env env, napi_callback_info info);
     static napi_value TriggerCombineKeys(napi_env env, napi_callback_info info);
     static napi_value InjectMultiPointerAction(napi_env env, napi_callback_info info);
+    static napi_value WaitForIdle(napi_env env, napi_callback_info info);
 
     static constexpr const char* DRIVER_CLASS_NAME = "Driver";
     static constexpr const char* FUNCTION_CREATE = "create";
@@ -158,14 +165,21 @@ public:
     static constexpr const char* FUNCTION_ASSERT_COMPONENT = "assertComponentExist";
     static constexpr const char* FUNCTION_FIND_COMPONENT = "findComponent";
     static constexpr const char* FUNCTION_FIND_COMPONENTS = "findComponents";
+    static constexpr const char* FUNCTION_WAIT_FOR_COMPONENT = "waitForComponent";
     static constexpr const char* FUNCTION_CLICK = "click";
     static constexpr const char* FUNCTION_DOUBLE_CLICK = "doubleClick";
     static constexpr const char* FUNCTION_LONG_CLICK = "longClick";
+    static constexpr const char* FUNCTION_DRAG = "drag";
     static constexpr const char* FUNCTION_SWIPE = "swipe";
     static constexpr const char* FUNCTION_FLING = "fling";
+    static constexpr const char* FUNCTION_SCREEN_CAPTURE = "screenCapture";
+    static constexpr const char* FUNCTION_SET_DISPLAY_ROTATION = "setDisplayRotation";
+    static constexpr const char* FUNCTION_GET_DISPLAY_SIZE = "getDisplaySize";
+    static constexpr const char* FUNCTION_IS_COMPONENT_PRESENT_WHEN_LONG_CLICK = "isComponentPresentWhenLongClick";
     static constexpr const char* FUNCTION_TRIGGER_KEY = "triggerKey";
     static constexpr const char* FUNCTION_TRIGGER_COMBINE_KEYS = "triggerCombineKeys";
     static constexpr const char* FUNCTION_INJECT_MULTI_POINTER_ACTION = "injectMultiPointerAction";
+    static constexpr const char* FUNCTION_WAIT_FOR_IDLE = "waitForIdle";
 };
 
 class PointerMatrixNExporter final : public LibN::NExporter {
