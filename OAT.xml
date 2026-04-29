@@ -68,6 +68,22 @@ Note:If the text contains special characters, please escape them according to th
                 <filteritem type="filepath" name="hypium/docs/.*" desc="hypium插件说明文档"/>
                 <filteritem type="filepath" name="hypium/dfx/.*" desc="hypium插件源码"/>
             </filefilter>
+            <filefilter name="copyrightPolicyFilter" desc="Copyright文件头校验策略的过滤条件" >
+                <filteritem type="filename" name="LaunchScreen.storyboard" desc="示例展示无需添加版权头"/>
+                <filteritem type="filepath" name=".*/crossplatform/.*/android/gradlew" desc="示例展示无需添加版权头"/>
+                <filteritem type="filepath" name=".*/crossplatform/.*.js" desc="示例展示无需添加版权头"/>
+                <filteritem type="filepath" name=".*/crossplatform/.*.java" desc="示例展示无需添加版权头"/>
+                <filteritem type="filepath" name=".*/crossplatform/.*.ets" desc="示例展示无需添加版权头"/>
+                <filteritem type="filepath" name=".*/crossplatform/.*.bat" desc="示例展示无需添加版权头"/>
+                <filteritem type="filepath" name=".*/crossplatform/.*.json5" desc="示例展示无需添加版权头"/>
+                <filteritem type="filepath" name=".*/crossplatform/.*.plist" desc="示例展示无需添加版权头"/>
+                <filteritem type="filepath" name=".*/crossplatform/.*.xcworkspacedata" desc="示例展示无需添加版权头"/>
+                <filteritem type="filepath" name=".*/crossplatform/.*.pbxproj" desc="示例展示无需添加版权头"/>  
+                <filteritem type="filepath" name=".*/crossplatform/.*/hvigorw" desc="示例展示无需添加版权头"/>
+                <filteritem type="filepath" name=".*/crossplatform/.*.ts" desc="示例展示无需添加版权头"/>
+                <filteritem type="filepath" name=".*/crossplatform/.*.projectInfo" desc="示例展示无需添加版权头"/>
+                <filteritem type="filepath" name=".*" desc="示例展示无需添加版权头"/>
+            </filefilter>
         </filefilterlist>
     </oatconfig>
 </configuration>

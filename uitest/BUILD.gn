@@ -1,4 +1,4 @@
-# Copyright (c) 2023 Huawei Device Co., Ltd.
+# Copyright (c) Huawei Technologies Co., Ltd. 2026-2026. All rights reserved.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,6 +15,7 @@ import("//build/ohos.gni")
 import("//commonlibrary/ets_utils/ets_utils_config.gni")
 import("//foundation/arkui/ace_engine/ace_config.gni")
 import("//foundation/arkui/ace_engine/build/ace_gen_obj.gni")
+import("//test/testfwk/arkxtest/uitest/uitest.gni")
 
 root_path = "//test/testfwk/arkxtest/uitest"
 libn_dirs = "${root_path}/napi_fwk"
@@ -47,6 +48,10 @@ ohos_source_set("uitest_core_static") {
   include_dirs += [
     "/core",
     "${root_path}/napi",
+    "${uitest_adapter_screen_capture_path}",
+    "${uitest_adapter_display_path}",
+    "${uitest_adapter_touch_inject_path}",
+    "${uitest_core_path}",
   ]
 
   sources = libn_src
@@ -60,10 +65,16 @@ ohos_source_set("uitest_core_static") {
     "${root_path}/core/driver.cpp",
     "${root_path}/napi/driver_napi_libn.cpp",
     "${root_path}/napi/uitest_n_exporter.cpp",
+    "${root_path}/socket/socket_dispatcher.cpp",
+    "${root_path}/socket/socket_protocol.cpp",
+    "${root_path}/socket/test_socket_server.cpp",
     "//foundation/arkui/ace_engine/frameworks/core/event/touch_event.cpp",
   ]
 
-  deps = [ "$plugins_root/libs/napi:napi_${target_os}" ]
+  deps = [ 
+    "$plugins_root/libs/napi:napi_${target_os}",
+    "//third_party/jsoncpp:jsoncpp_static",
+  ]
 
   if (is_standard_system) {
     external_deps = [ "hiviewdfx_hilog_native:libhilog" ]
@@ -78,9 +89,25 @@ ohos_source_set("uitest_core_static") {
     include_dirs += [ "$plugins_root/hilog/include" ]
     if (target_os == "android") {
       defines = [ "ANDROID_PLATFORM" ]
+      deps += [
+        "${uitest_adapter_display_android_path}:display_android_jni",
+        "${uitest_adapter_screen_capture_android_path}:screencapture_android_jni",
+        "${uitest_adapter_touch_inject_android_path}:touchinject_android_jni",
+      ]
     }
     if (target_os == "ios") {
       defines = [ "IOS_PLATFORM" ]
+      deps += [
+        "${root_path}/adapter/display/ios:display_ios",
+        "${root_path}/adapter/screen_capture/iOS:screencapture_ios",
+        "${root_path}/adapter/touch_inject/ios:touchinject_ios",
+      ]
+      frameworks = [
+        "CoreGraphics.framework",
+        "Foundation.framework",
+        "QuartzCore.framework",
+        "UIKit.framework",
+      ]
     }
   } else {
     deps += [ "$napi_root:ace_napi" ]

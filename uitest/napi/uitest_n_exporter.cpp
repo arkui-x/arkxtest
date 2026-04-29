@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Huawei Device Co., Ltd.
+ * Copyright (c) 2023-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -14,8 +14,15 @@
  */
 #include "uitest_n_exporter.h"
 
+#include <memory>
+#include <vector>
+
 #include "../core/driver.h"
+#include "../socket/socket_protocol.h"
+#include "../socket/test_socket_server.h"
+#include "ability_delegator/ability_delegator_registry.h"
 #include "driver_napi_libn.h"
+#include "utils/log.h"
 
 namespace OHOS::UiTest {
 
@@ -52,13 +59,46 @@ static void InitMatchPattern(napi_env env, napi_value exports)
     napi_set_named_property(env, exports, propertyName, obj);
 }
 
+static void InitTestSocket(napi_env env, napi_value exports)
+{
+    (void)env;
+    (void)exports;
+    auto socketPort = AppExecFwk::AbilityDelegatorRegistry::GetSocketConfig();
+    static std::shared_ptr<TestSocket> testSock = std::make_shared<TestSocket>(socketPort);
+    if (testSock->Start()) {
+        HILOG_INFO("Test Socket start successed!");
+    }
+}
+
+static void InitDisplayRotation(napi_env env, napi_value exports)
+{
+    char propertyName[] = "DisplayRotation";
+    napi_value obj = nullptr;
+    napi_create_object(env, &obj);
+    static napi_property_descriptor desc[] = {
+        DECLARE_NAPI_STATIC_PROPERTY("ROTATION_0", NVal::CreateInt32(env, (int32_t)DisplayRotation::ROTATION_0).val_),
+        DECLARE_NAPI_STATIC_PROPERTY("ROTATION_90", NVal::CreateInt32(env, (int32_t)DisplayRotation::ROTATION_90).val_),
+        DECLARE_NAPI_STATIC_PROPERTY(
+            "ROTATION_180", NVal::CreateInt32(env, (int32_t)DisplayRotation::ROTATION_180).val_),
+        DECLARE_NAPI_STATIC_PROPERTY(
+            "ROTATION_270", NVal::CreateInt32(env, (int32_t)DisplayRotation::ROTATION_270).val_),
+    };
+    napi_define_properties(env, obj, sizeof(desc) / sizeof(desc[0]), desc);
+    napi_set_named_property(env, exports, propertyName, obj);
+}
+
 /***********************************************
  * Module export and register
  ***********************************************/
 napi_value UiTestExport(napi_env env, napi_value exports)
 {
+    if (env == nullptr && exports == nullptr) {
+        InitTestSocket(env, exports);
+        return nullptr;
+    }
     InitUiDirection(env, exports);
     InitMatchPattern(env, exports);
+    InitDisplayRotation(env, exports);
     std::vector<std::unique_ptr<NExporter>> products;
     products.emplace_back(std::make_unique<OnNExporter>(env, exports));
     products.emplace_back(std::make_unique<ComponentNExporter>(env, exports));

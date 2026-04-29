@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Huawei Device Co., Ltd.
+ * Copyright (c) 2023-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -30,6 +30,45 @@ namespace UiTest {
 namespace LibN {
 using namespace std;
 
+constexpr const char* PENDING_API_PROP = "__uitest_pending_api__";
+
+static void ClearPendingApi(napi_env env, NVal& thisVal)
+{
+    if (thisVal.TypeIs(napi_object)) {
+        napi_set_named_property(env, thisVal.val_, PENDING_API_PROP, NVal::CreateUTF8String(env, "").val_);
+    }
+}
+
+static bool CheckAndSetPendingApi(napi_env env, NVal& thisVal, const string& procedureName)
+{
+    if (!thisVal.TypeIs(napi_object)) {
+        return true;
+    }
+    if (!thisVal.HasProp(PENDING_API_PROP)) {
+        napi_set_named_property(env, thisVal.val_, PENDING_API_PROP, NVal::CreateUTF8String(env, procedureName).val_);
+        return true;
+    }
+
+    auto pendingVal = thisVal.GetProp(PENDING_API_PROP);
+    if (!pendingVal.TypeIs(napi_string)) {
+        napi_set_named_property(env, thisVal.val_, PENDING_API_PROP, NVal::CreateUTF8String(env, procedureName).val_);
+        return true;
+    }
+
+    auto [succ, str, len] = pendingVal.ToUTF8String();
+    if (!(succ && len > 0)) {
+        napi_set_named_property(env, thisVal.val_, PENDING_API_PROP, NVal::CreateUTF8String(env, procedureName).val_);
+        return true;
+    }
+
+    string pendingFunc(str.get(), len);
+    auto errGen = [pendingFunc, procedureName]() {
+        return make_tuple(E_AWAIT, FormatConcurrentErrMsg(pendingFunc, procedureName));
+    };
+    NError(errGen).ThrowErr(env);
+    return false;
+}
+
 NAsyncWorkPromise::NAsyncWorkPromise(napi_env env, NVal thisPtr) : NAsyncWork(env)
 {
     ctx_ = new NAsyncContextPromise(thisPtr);
@@ -49,6 +88,9 @@ static void PromiseOnComplete(napi_env env, napi_status status, void *data)
     if (ctx == nullptr) {
         return;
     }
+    NVal thisVal = ctx->thisPtr_.Deref(env);
+    ClearPendingApi(env, thisVal);
+
     if (ctx->cbComplete_ != nullptr) {
         ctx->res_ = ctx->cbComplete_(env, ctx->err_);
     }
@@ -73,11 +115,17 @@ NVal NAsyncWorkPromise::Schedule(string procedureName, NContextCBExec cbExec, NC
     ctx_->cbExec_ = move(cbExec);
     ctx_->cbComplete_ = move(cbComplete);
 
+    NVal thisVal = ctx_->thisPtr_.Deref(env_);
+    if (!CheckAndSetPendingApi(env_, thisVal, procedureName)) {
+        return NVal();
+    }
+
     napi_status status;
     napi_value result = nullptr;
     status = napi_create_promise(env_, &ctx_->deferred_, &result);
     if (status != napi_ok) {
         HILOG_ERROR("INNER BUG. Cannot create promise for %{public}d", status);
+        ClearPendingApi(env_, thisVal);
         return NVal();
     }
 
@@ -85,12 +133,14 @@ NVal NAsyncWorkPromise::Schedule(string procedureName, NContextCBExec cbExec, NC
     status = napi_create_async_work(env_, nullptr, resource, PromiseOnExec, PromiseOnComplete, ctx_, &ctx_->awork_);
     if (status != napi_ok) {
         HILOG_ERROR("INNER BUG. Failed to create async work for %{public}d", status);
+        ClearPendingApi(env_, thisVal);
         return NVal();
     }
 
     status = napi_queue_async_work(env_, ctx_->awork_);
     if (status != napi_ok) {
         HILOG_ERROR("INNER BUG. Failed to queue async work for %{public}d", status);
+        ClearPendingApi(env_, thisVal);
         return NVal();
     }
 
