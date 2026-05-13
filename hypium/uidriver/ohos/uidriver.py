@@ -11,6 +11,11 @@ from typing import List, Union, Tuple
 
 from hypium.dfx.tracker import Tracker, TrackerEvent
 from hypium.uidriver.interface import IUiDriver
+from hypium.uidriver.interface.iuidriver import (
+    IUiDriverTimeLocaleModule,
+    IUiDriverScreenModule,
+    IUiDriverScreenLockModule,
+)
 from hypium.uidriver.interface.uitree import ISelector, IUiComponent
 
 try:
@@ -385,6 +390,18 @@ class OHOSDriver(OSAwBase, IUiDriver, CompatibleInterfaceMixIn):
             raise HypiumOperationFailError("Fail to create UiDriver, please check device uitest status")
         self._event_manager = EventManager()
         super().__init__(driver)
+
+    @property
+    def TimeLocale(self) -> IUiDriverTimeLocaleModule:
+        return None
+
+    @property
+    def Screen(self) -> IUiDriverScreenModule:
+        return None
+
+    @property
+    def ScreenLock(self) -> IUiDriverScreenLockModule:
+        return None
 
     def __getattr__(self, item):
         result = None
@@ -973,6 +990,13 @@ class OHOSDriver(OSAwBase, IUiDriver, CompatibleInterfaceMixIn):
             return None
         else:
             return component.getBounds()
+
+    def get_component_pos(self, component: Union[ISelector, IUiComponent]):
+        """获取控件中心点坐标"""
+        bounds = self.get_component_bound(component)
+        if bounds is None:
+            return None
+        return bounds.get_center()
 
     def press_back(self):
         """

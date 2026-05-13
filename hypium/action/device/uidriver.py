@@ -13,6 +13,11 @@ from hypium.uidriver.gesture import Gesture
 from .plugin_mix_in import PluginMixIn
 from hypium.model.driver_config import DriverConfig
 from hypium.uidriver.interface.uitree import ISelector
+from hypium.uidriver.interface.iuidriver import (
+    IUiDriverTimeLocaleModule,
+    IUiDriverScreenModule,
+    IUiDriverScreenLockModule,
+)
 from hypium.version import __version__
 from hypium.dfx.tracker import Tracker
 
@@ -158,6 +163,9 @@ class UiDriver(IUiDriver,
         根据设备类型, 创建不同系统的driver实现对象, 传入device设备对象创建driver
         """
         self._driver_impl = device_connector.create_driver_impl(device, agent_mode, **kwargs)
+        self.TimeLocale = UiDriver.TimeLocale(self._driver_impl)
+        self.Screen = UiDriver.Screen(self._driver_impl)
+        self.ScreenLock = UiDriver.ScreenLock(self._driver_impl)
         self._driver_impl.log.info("hypium base version: %s" % __version__)
         setattr(self._driver_impl.driver, constant.FULL_DRIVER_TMP_KEY, weakref.proxy(self))
 
@@ -626,6 +634,21 @@ class UiDriver(IUiDriver,
                  bounds = driver.get_component_bound(component)
         """
         return self._driver_impl.get_component_bound(component)
+
+    @keyword
+    @record_action
+    def get_component_pos(self, component: Union[ISelector, IUiComponent]):
+        """
+        @func 获取指定控件的中心点坐标
+        @param: component: 需要获取中心点坐标的控件选择器或者控件对象
+        @return: 返回控件中心点坐标，例如(x, y)，如果没找到控件则返回None
+        @example # 获取text为按钮的控件中心点坐标
+                 pos = driver.get_component_pos(BY.text("按钮"))
+                 # 获取控件对象的中心点坐标
+                 component = driver.find_component(BY.text("按钮"))
+                 pos = driver.get_component_pos(component)
+        """
+        return self._driver_impl.get_component_pos(component)
 
     @keyword
     def press_back(self):
@@ -1685,6 +1708,69 @@ class UiDriver(IUiDriver,
     def __str__(self):
         return f"UiDriver#{self.device_sn}"
 
+    class TimeLocale(IUiDriverTimeLocaleModule):
+        def __init__(self, driver_impl):
+            self._driver_impl = driver_impl
+
+        def get_language(self):
+            """
+            @func 获取系统语言地区
+            @return: 系统语言地区字符串，例如zh-Hans-CN表示中文简体中国
+            @example: # 获取系统语言地区
+                      driver.TimeLocale.get_language()
+            """
+            return self._driver_impl.get_language()
+
+    class Screen(IUiDriverScreenModule):
+        def __init__(self, driver_impl):
+            self._driver_impl = driver_impl
+
+        def set_rotation(self, rotation):
+            """
+            @func 设置屏幕旋转方向
+            @param rotation: 屏幕旋转方向，取值为DisplayRotation枚举
+            @example: # 设置屏幕旋转方向为逆时针旋转90度
+                      driver.Screen.set_display_rotation(DisplayRotation.ROTATION_90)
+            """
+            return self._driver_impl.set_display_rotation(rotation)
+
+        def close(self):
+            """
+            @func 关闭屏幕显示
+            @example: # 关闭屏幕显示
+                      driver.Screen.close()
+            """
+            return self._driver_impl.close_display()
+
+        def is_on(self):
+            """
+            @func 获取屏幕亮屏状态
+            @return: True表示屏幕亮屏状态，False表示屏幕熄屏状态
+            @example: # 获取屏幕亮屏状态
+                      driver.Screen.is_on()
+            """
+            return self._driver_impl.is_display_on()
+
+        def wake_up(self):
+            """
+            @func 唤醒屏幕
+            @example: # 唤醒屏幕
+                      driver.Screen.wake_up()
+            """
+            return self._driver_impl.wake_up_display()
+
+    class ScreenLock(IUiDriverScreenLockModule):
+        def __init__(self, driver_impl):
+            self._driver_impl = driver_impl
+
+        def is_locked(self):
+            """
+            @func 获取屏幕锁定状态
+            @return: True表示屏幕锁定状态，False表示屏幕未锁定状态
+            @example: # 获取屏幕锁定状态
+                      driver.ScreenLock.is_locked()
+            """
+            return self._driver_impl.is_display_locked()
 
 class AwBase(ABC):
 
