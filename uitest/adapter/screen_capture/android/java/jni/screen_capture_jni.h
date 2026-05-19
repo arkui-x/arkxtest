@@ -29,7 +29,7 @@ class ScreenCaptureJni final {
 public:
     static bool Register(void* env);
     static void NativeInit(JNIEnv* env, jobject jobj);
-    static bool CaptureScreen(const std::string& savePath, const Rect& rect);
+    static int32_t CaptureScreen(const std::string& savePath, const Rect& rect);
 
 private:
     ACE_DISALLOW_COPY_AND_MOVE(ScreenCaptureJni);

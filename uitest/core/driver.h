@@ -138,7 +138,7 @@ public:
     void Swipe(int startx, int starty, int endx, int endy, uint32_t speed);
     void Fling(const Point& from, const Point& to, int stepLen, uint32_t speed = 0);
     void Fling(UiDirection direction, uint32_t speed = 0);
-    bool ScreenCapture(const std::string& path, const Rect& rect);
+    int32_t ScreenCapture(const std::string& path, const Rect& rect);
     void SetDisplayRotation(DisplayRotation rotation);
     bool IsComponentPresentWhenLongClick(
         const On& on, const Point& point, int32_t durationMs = DEFAULT_LONG_CLICK_DURATION_MS);

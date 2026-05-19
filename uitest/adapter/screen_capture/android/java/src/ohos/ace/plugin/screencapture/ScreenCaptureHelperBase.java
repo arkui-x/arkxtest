@@ -21,6 +21,20 @@ package ohos.ace.plugin.screencapture;
  * @since 1
  */
 public abstract class ScreenCaptureHelperBase {
+    /**
+     * Result code indicating the screen capture succeeded.
+     */
+    public static final int RESULT_OK = 0;
+
+    /**
+     * Result code indicating the save path is invalid.
+     */
+    public static final int RESULT_INVALID_PATH = 1;
+
+    /**
+     * Result code indicating the screen capture failed for reasons other than an invalid path.
+     */
+    public static final int RESULT_FAILED = -1;
 
     /**
      * CaptureRegion defines the region to be captured on the screen
@@ -69,10 +83,11 @@ public abstract class ScreenCaptureHelperBase {
      * @param savePath the path to save the captured screen
      * @param region the region to capture
      * @param displayId the ID of the display to capture
-     * @return true if the screen was successfully captured, false otherwise
+     * @return RESULT_OK if the screen was successfully captured,
+     * RESULT_INVALID_PATH if the save path is invalid, RESULT_FAILED otherwise
      * @since 1
      */
-    public abstract boolean captureScreen(String savePath, CaptureRegion region, int displayId);
+    public abstract int captureScreen(String savePath, CaptureRegion region, int displayId);
 
     /**
      * Initialize screencapture plugin

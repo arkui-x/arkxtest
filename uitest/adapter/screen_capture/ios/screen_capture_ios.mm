@@ -17,12 +17,24 @@
 #import <UIKit/UIKit.h>
 
 #include "screen_capture_ios.h"
+#include "screen_capture_interface.h"
 #include "utils/log.h"
 
 namespace OHOS::UiTest {
 namespace {
 constexpr CFTimeInterval kFlushRunLoopWaitSeconds = 0.02;
 constexpr CFTimeInterval kPresentRunLoopWaitSeconds = 0.03;
+
+static bool HasValidPathPrefix(NSString *path, NSString *prefix) {
+    if (path == nil || prefix == nil) {
+        return false;
+    }
+    if ([path isEqualToString:prefix]) {
+        return true;
+    }
+    NSString *directoryPrefix = [prefix stringByAppendingString:@"/"];
+    return [path hasPrefix:directoryPrefix];
+}
 
 static UIWindow *GetWindowFromScene(UIScene *scene, UIWindow *&candidateWindow) {
     if (scene.activationState != UISceneActivationStateForegroundActive) {
@@ -358,30 +370,85 @@ static UIImage *CropImageIfNeeded(UIImage *image, const Rect &rect) {
 }
 
 static NSString *ResolveSandboxPath(NSString *path, NSString *prefix, NSSearchPathDirectory directory) {
-    if (![path hasPrefix:prefix] && ![path isEqualToString:[prefix substringToIndex:prefix.length - 1]]) {
-        return path;
-    }
     NSString *baseDir = NSSearchPathForDirectoriesInDomains(directory, NSUserDomainMask, YES).firstObject;
     if (baseDir == nil) {
-        return path;
+        return nil;
     }
     NSString *rootPath = [prefix substringToIndex:prefix.length - 1];
     NSString *subPath = [path isEqualToString:rootPath] ? @"" : [path substringFromIndex:prefix.length];
     return subPath.length > 0 ? [baseDir stringByAppendingPathComponent:subPath] : baseDir;
 }
 
-static NSString *ResolveOutputPath(NSString *path) {
-    NSString *resolvedPath = ResolveSandboxPath(path, @"/Documents/", NSDocumentDirectory);
-    resolvedPath = ResolveSandboxPath(resolvedPath, @"/Library/", NSLibraryDirectory);
-    if ([resolvedPath hasPrefix:@"/tmp/"] || [resolvedPath isEqualToString:@"/tmp"]) {
-        NSString *tmpDir = NSTemporaryDirectory();
-        if (tmpDir == nil) {
-            return resolvedPath;
-        }
-        NSString *subPath = [resolvedPath isEqualToString:@"/tmp"] ? @"" : [resolvedPath substringFromIndex:5];
-        return subPath.length > 0 ? [tmpDir stringByAppendingPathComponent:subPath] : tmpDir;
+static NSString *ResolveCachesPath(NSString *path) {
+    NSString *prefix = @"/Library/Caches/";
+    NSString *rootPath = @"/Library/Caches";
+    if (![path hasPrefix:prefix] && ![path isEqualToString:rootPath]) {
+        return nil;
     }
-    return resolvedPath;
+
+    NSString *baseDir = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES).firstObject;
+    if (baseDir == nil) {
+        return nil;
+    }
+    NSString *subPath = [path isEqualToString:rootPath] ? @"" : [path substringFromIndex:prefix.length];
+    return subPath.length > 0 ? [baseDir stringByAppendingPathComponent:subPath] : baseDir;
+}
+
+static NSString *ResolvePreferencesPath(NSString *path) {
+    NSString *prefix = @"/Library/Preferences/";
+    NSString *rootPath = @"/Library/Preferences";
+    if (![path hasPrefix:prefix] && ![path isEqualToString:rootPath]) {
+        return nil;
+    }
+
+    NSString *libraryDir = NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES).firstObject;
+    if (libraryDir == nil) {
+        return nil;
+    }
+    NSString *baseDir = [libraryDir stringByAppendingPathComponent:@"Preferences"];
+    NSString *subPath = [path isEqualToString:rootPath] ? @"" : [path substringFromIndex:prefix.length];
+    return subPath.length > 0 ? [baseDir stringByAppendingPathComponent:subPath] : baseDir;
+}
+
+static NSString *ResolveTmpPath(NSString *path) {
+    NSString *prefix = @"/tmp/";
+    NSString *rootPath = @"/tmp";
+    if (![path hasPrefix:prefix] && ![path isEqualToString:rootPath]) {
+        return nil;
+    }
+
+    NSString *baseDir = NSTemporaryDirectory();
+    if (baseDir == nil) {
+        return nil;
+    }
+    NSString *standardizedBaseDir = [baseDir stringByStandardizingPath];
+    NSString *subPath = [path isEqualToString:rootPath] ? @"" : [path substringFromIndex:prefix.length];
+    return subPath.length > 0 ? [standardizedBaseDir stringByAppendingPathComponent:subPath] : standardizedBaseDir;
+}
+
+static NSString *ResolveOutputPath(NSString *path, int32_t &status) {
+    if (HasValidPathPrefix(path, @"/Documents")) {
+        NSString *resolvedPath = ResolveSandboxPath(path, @"/Documents/", NSDocumentDirectory);
+        status = (resolvedPath != nil) ? SCREEN_CAPTURE_STATUS_OK : SCREEN_CAPTURE_STATUS_FAILED;
+        return resolvedPath;
+    }
+    if (HasValidPathPrefix(path, @"/Library/Caches")) {
+        NSString *resolvedPath = ResolveCachesPath(path);
+        status = (resolvedPath != nil) ? SCREEN_CAPTURE_STATUS_OK : SCREEN_CAPTURE_STATUS_FAILED;
+        return resolvedPath;
+    }
+    if (HasValidPathPrefix(path, @"/Library/Preferences")) {
+        NSString *resolvedPath = ResolvePreferencesPath(path);
+        status = (resolvedPath != nil) ? SCREEN_CAPTURE_STATUS_OK : SCREEN_CAPTURE_STATUS_FAILED;
+        return resolvedPath;
+    }
+    if (HasValidPathPrefix(path, @"/tmp")) {
+        NSString *resolvedPath = ResolveTmpPath(path);
+        status = (resolvedPath != nil) ? SCREEN_CAPTURE_STATUS_OK : SCREEN_CAPTURE_STATUS_FAILED;
+        return resolvedPath;
+    }
+    status = SCREEN_CAPTURE_STATUS_INVALID_PATH;
+    return nil;
 }
 
 static void EnsureParentDirectoryExists(NSString *path) {
@@ -434,23 +501,30 @@ static NSData *EncodeImageToPngData(UIImage *image) {
     return pngData;
 }
 
-static NSString *ResolveValidatedOutputPath(const std::string &path) {
+static NSString *ResolveValidatedOutputPath(const std::string &path, int32_t &status) {
     NSString *originPath = [NSString stringWithUTF8String:path.c_str()];
     NSString *nsPath = originPath;
     if (nsPath == nil || nsPath.length == 0) {
         HILOG_ERROR("ScreenCaptureToFile: invalid path string");
+        status = SCREEN_CAPTURE_STATUS_INVALID_PATH;
         return nil;
     }
 
-    nsPath = ResolveOutputPath(nsPath);
+    nsPath = ResolveOutputPath(nsPath, status);
+    if (nsPath == nil) {
+        HILOG_ERROR("ScreenCaptureToFile: resolve output path failed, path=%{public}s status=%{public}d",
+                    [originPath UTF8String], status);
+        return nil;
+    }
     if (!IsSandboxWritablePath(nsPath)) {
         HILOG_ERROR("ScreenCaptureToFile: path is outside sandbox, path=%{public}s", [nsPath UTF8String]);
+        status = SCREEN_CAPTURE_STATUS_INVALID_PATH;
         return nil;
     }
     return nsPath;
 }
 
-static bool PersistPngDataToPath(NSData *pngData, NSString *nsPath, NSString *originPath) {
+static int32_t PersistPngDataToPath(NSData *pngData, NSString *nsPath, NSString *originPath) {
     EnsureParentDirectoryExists(nsPath);
     HILOG_WARN("ScreenCaptureToFile will save to %{public}s (origin: %{public}s)", [nsPath UTF8String],
                [originPath UTF8String]);
@@ -460,71 +534,73 @@ static bool PersistPngDataToPath(NSData *pngData, NSString *nsPath, NSString *or
     if (!ok) {
         HILOG_ERROR("ScreenCaptureToFile: write failed, path=%{public}s (origin: %{public}s)", [nsPath UTF8String],
                     [originPath UTF8String]);
-        return false;
+        return SCREEN_CAPTURE_STATUS_FAILED;
     }
-    return true;
+    return SCREEN_CAPTURE_STATUS_OK;
 }
 
-static bool WriteImageToPath(UIImage *image, const std::string &path) {
+static int32_t WriteImageToPath(UIImage *image, const std::string &path) {
     if (image == nil) {
-        return false;
+        return SCREEN_CAPTURE_STATUS_FAILED;
     }
 
     NSData *pngData = EncodeImageToPngData(image);
     if (pngData == nil) {
-        return false;
+        return SCREEN_CAPTURE_STATUS_FAILED;
     }
 
     NSString *originPath = [NSString stringWithUTF8String:path.c_str()];
-    NSString *nsPath = ResolveValidatedOutputPath(path);
+    int32_t status = SCREEN_CAPTURE_STATUS_OK;
+    NSString *nsPath = ResolveValidatedOutputPath(path, status);
     if (nsPath == nil) {
-        return false;
+        return status;
     }
 
     return PersistPngDataToPath(pngData, nsPath, originPath);
 }
 
-static bool CaptureAndWriteImageOnMainThread(const std::string &path, const Rect &rect) {
+static int32_t CaptureAndWriteImageOnMainThread(const std::string &path, const Rect &rect) {
     @autoreleasepool {
         UIWindow *window = GetKeyWindow();
         if (window == nil) {
             HILOG_ERROR("ScreenCaptureToFile: window is null");
-            return false;
+            return SCREEN_CAPTURE_STATUS_FAILED;
         }
 
         UIImage *image = CaptureWindowImage(window);
         if (image == nil) {
             HILOG_ERROR("ScreenCaptureToFile: capture failed");
-            return false;
+            return SCREEN_CAPTURE_STATUS_FAILED;
         }
 
         UIImage *target = CropImageIfNeeded(image, rect);
         if (target == nil) {
             HILOG_WARN("ScreenCaptureToFile: target image is nil after crop");
-            return false;
+            return SCREEN_CAPTURE_STATUS_FAILED;
         }
         return WriteImageToPath(target, path);
     }
 }
 
-static bool ValidateScreenCaptureRequest(const std::string &path, const Rect &rect)
+static int32_t ValidateScreenCaptureRequest(const std::string &path, const Rect &rect)
 {
     if (path.empty()) {
         HILOG_ERROR("ScreenCaptureToFile: empty path");
-        return false;
+        return SCREEN_CAPTURE_STATUS_INVALID_PATH;
     }
-    return true;
+    return SCREEN_CAPTURE_STATUS_OK;
 }
 }  // namespace
 
-bool ScreenCaptureToFile(const std::string &path, const Rect &rect) {
+int32_t ScreenCaptureToFile(const std::string &path, const Rect &rect) {
     Rect normalizedRect = rect;
-    if (!ValidateScreenCaptureRequest(path, normalizedRect)) {
-        return false;
+    const int32_t validationResult = ValidateScreenCaptureRequest(path, normalizedRect);
+    if (validationResult != SCREEN_CAPTURE_STATUS_OK) {
+        return validationResult;
     }
     if (![NSThread isMainThread]) {
         HILOG_ERROR("ScreenCaptureToFile: must be called on main thread");
-        return false;
+        return SCREEN_CAPTURE_STATUS_FAILED;
     }
     return CaptureAndWriteImageOnMainThread(path, normalizedRect);
 }

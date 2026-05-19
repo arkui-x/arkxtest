@@ -30,7 +30,7 @@ public:
     ScreenCaptureProxy() = default;
     ~ScreenCaptureProxy() = default;
     void SetDelegate(std::unique_ptr<ScreenCaptureInterface>&& delegate);
-    bool CaptureScreen(const std::string& savePath, const Rect& rect);
+    int32_t CaptureScreen(const std::string& savePath, const Rect& rect);
 
 private:
     std::unique_ptr<ScreenCaptureInterface> delegate_ = nullptr;

@@ -21,7 +21,7 @@
 #include "test/testfwk/arkxtest/uitest/core/common_type.h"
 
 namespace OHOS::UiTest {
-bool ScreenCaptureToFile(const std::string& path, const Rect& rect);
+    int32_t ScreenCaptureToFile(const std::string& path, const Rect& rect);
 } // namespace OHOS::UiTest
 
 #endif // TEST_TESTFWK_ARKXTEST_UITEST_CAPABILITY_SCREEN_CAPTURE_IOS_SCREEN_CAPTURE_IOS_H
