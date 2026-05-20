@@ -828,12 +828,12 @@ void Driver::Fling(UiDirection direction, uint32_t speed)
     uiContent->ProcessBasicEvent(flingEvents);
 }
 
-bool Driver::ScreenCapture(const std::string& path, const Rect& rect)
+int32_t Driver::ScreenCapture(const std::string& path, const Rect& rect)
 {
     auto proxy = ScreenCaptureProxy::GetInstance();
     if (proxy == nullptr) {
         HILOG_ERROR("Driver::ScreenCapture proxy is null");
-        return false;
+        return SCREEN_CAPTURE_STATUS_FAILED;
     }
 
     if (HasScreenCaptureRect(rect)) {
@@ -842,18 +842,18 @@ bool Driver::ScreenCapture(const std::string& path, const Rect& rect)
         if (errCode != ERR_OK) {
             HILOG_ERROR("Driver::ScreenCapture failed: get display size failed, displayId=%d, errCode=%d",
                 rect.displayId, errCode);
-            return false;
+            return SCREEN_CAPTURE_STATUS_FAILED;
         }
         if (!IsScreenCaptureRectValid(rect, displaySize)) {
             HILOG_ERROR("Driver::ScreenCapture failed: code=%d, message=%s, rect=[%d,%d,%d,%d], displaySize=[%d,%d]",
                 SCREEN_CAPTURE_INTERNAL_ERROR, SCREEN_CAPTURE_INTERNAL_ERROR_MSG, rect.left, rect.top, rect.right,
                 rect.bottom, displaySize.x, displaySize.y);
-            return false;
+            return SCREEN_CAPTURE_STATUS_FAILED;
         }
     }
-    const bool result = proxy->CaptureScreen(path, rect);
-    if (!result) {
-        HILOG_ERROR("Driver::ScreenCapture failed: proxy capture returned false, path=%s", path.c_str());
+    const int32_t result = proxy->CaptureScreen(path, rect);
+    if (result != SCREEN_CAPTURE_STATUS_OK) {
+        HILOG_ERROR("Driver::ScreenCapture failed: proxy capture returned %d, path=%s", result, path.c_str());
     }
     return result;
 }

@@ -20,7 +20,7 @@
 #include "base/memory/ace_type.h"
 
 namespace OHOS::UiTest {
-bool ScreenCaptureDelegate::CaptureScreen(const std::string& savePath, const Rect& rect)
+int32_t ScreenCaptureDelegate::CaptureScreen(const std::string& savePath, const Rect& rect)
 {
     return ScreenCaptureJni::CaptureScreen(savePath, rect);
 }

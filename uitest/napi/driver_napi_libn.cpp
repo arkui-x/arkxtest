@@ -15,6 +15,7 @@
 
 #include "driver_napi_libn.h"
 
+#include "../adapter/screen_capture/screen_capture_interface.h"
 #include "../core/driver.h"
 
 #include <atomic>
@@ -47,7 +48,7 @@ struct ScreenCapturePromiseContext {
     std::atomic_bool resultQueued = false;
 };
 
-static void ResolveScreenCaptureDeferred(napi_env env, ScreenCapturePromiseContext* asyncContext, bool result);
+static void CompleteScreenCaptureDeferred(napi_env env, ScreenCapturePromiseContext* asyncContext, int32_t resultCode);
 
 static void ClearPendingApiForScreenCapture(napi_env env, NVal& thisVal)
 {
@@ -56,14 +57,19 @@ static void ClearPendingApiForScreenCapture(napi_env env, NVal& thisVal)
     }
 }
 
-static void ResolveScreenCaptureDeferred(napi_env env, ScreenCapturePromiseContext* asyncContext, bool result)
+static void CompleteScreenCaptureDeferred(napi_env env, ScreenCapturePromiseContext* asyncContext, int32_t resultCode)
 {
     if (env == nullptr || asyncContext == nullptr || asyncContext->deferred == nullptr) {
         return;
     }
     NVal thisVal = asyncContext->thisRef.Deref(env);
     ClearPendingApiForScreenCapture(env, thisVal);
-    napi_resolve_deferred(env, asyncContext->deferred, NVal::CreateBool(env, result).val_);
+    if (resultCode == SCREEN_CAPTURE_STATUS_INVALID_PATH) {
+        napi_reject_deferred(env, asyncContext->deferred, NError(E_PARAMS).GetNapiErr(env));
+    } else {
+        napi_resolve_deferred(env, asyncContext->deferred,
+            NVal::CreateBool(env, resultCode == SCREEN_CAPTURE_STATUS_OK).val_);
+    }
     asyncContext->deferred = nullptr;
 }
 
@@ -106,7 +112,7 @@ static void FinalizeScreenCaptureThreadsafeFunction(napi_env env, void* finalize
 {
     auto* asyncContext = static_cast<ScreenCapturePromiseContext*>(finalizeData);
     if (asyncContext != nullptr && asyncContext->deferred != nullptr && !asyncContext->resultQueued.load()) {
-        ResolveScreenCaptureDeferred(env, asyncContext, false);
+        CompleteScreenCaptureDeferred(env, asyncContext, SCREEN_CAPTURE_STATUS_FAILED);
     }
     delete asyncContext;
 }
@@ -114,12 +120,13 @@ static void FinalizeScreenCaptureThreadsafeFunction(napi_env env, void* finalize
 static void ResolveScreenCapturePromise(napi_env env, napi_value jsCallback, void* context, void* data)
 {
     auto* asyncContext = static_cast<ScreenCapturePromiseContext*>(context);
-    unique_ptr<bool> result(static_cast<bool*>(data));
+    unique_ptr<int32_t> result(static_cast<int32_t*>(data));
     if (env == nullptr || asyncContext == nullptr) {
         return;
     }
 
-    ResolveScreenCaptureDeferred(env, asyncContext, result != nullptr && *result);
+    CompleteScreenCaptureDeferred(env, asyncContext,
+        result != nullptr ? *result : SCREEN_CAPTURE_STATUS_FAILED);
 }
 
 static bool CreateScreenCapturePromiseContext(napi_env env, napi_value thisVar, NVal& thisValue,
@@ -176,10 +183,16 @@ static void DispatchScreenCaptureToMainThread(Driver* driver, std::string pathSt
     auto pathCopy = std::move(pathStr);
     auto rectCopy = rect;
     dispatch_async(dispatch_get_main_queue(), ^{
-        const bool captureResult = driver->ScreenCapture(pathCopy, rectCopy);
-        auto* result = new (std::nothrow) bool(captureResult);
+        const int32_t captureResult = driver->ScreenCapture(pathCopy, rectCopy);
+        auto* result = new (std::nothrow) int32_t(captureResult);
         if (result == nullptr) {
             HILOG_ERROR("ScreenCapture NAPI allocate result failed");
+            napi_status callStatus = napi_call_threadsafe_function(asyncContext->tsfn, nullptr, napi_tsfn_nonblocking);
+            if (callStatus == napi_ok) {
+                asyncContext->resultQueued.store(true);
+            } else {
+                HILOG_ERROR("ScreenCapture NAPI queue failed result to JS failed, status=%{public}d", callStatus);
+            }
             napi_release_threadsafe_function(asyncContext->tsfn, napi_tsfn_release);
             return;
         }
@@ -1699,16 +1712,19 @@ static napi_value ScheduleScreenCapture(napi_env env, napi_value thisVar, Driver
 static napi_value ScheduleDefaultScreenCapture(napi_env env, napi_value thisVar, Driver* driver,
     const std::string& pathStr, const Rect& rect)
 {
-    static bool ret = false;
-    auto cbExec = [driver, pathStr, rect]() -> NError {
-        ret = driver->ScreenCapture(pathStr, rect);
+    auto resultCode = std::make_shared<int32_t>(SCREEN_CAPTURE_STATUS_FAILED);
+    auto cbExec = [driver, pathStr, rect, resultCode]() -> NError {
+        *resultCode = driver->ScreenCapture(pathStr, rect);
+        if (*resultCode == SCREEN_CAPTURE_STATUS_INVALID_PATH) {
+            return NError(E_PARAMS);
+        }
         return NError(ERRNO_NOERR);
     };
-    auto cbCompl = [](napi_env env, NError err) -> NVal {
+    auto cbCompl = [resultCode](napi_env env, NError err) -> NVal {
         if (err) {
             return { env, err.GetNapiErr(env) };
         }
-        return NVal::CreateBool(env, ret);
+        return NVal::CreateBool(env, *resultCode == SCREEN_CAPTURE_STATUS_OK);
     };
 
     NVal thisValue(env, thisVar);

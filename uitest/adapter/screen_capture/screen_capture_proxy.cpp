@@ -29,9 +29,9 @@ void ScreenCaptureProxy::SetDelegate(std::unique_ptr<ScreenCaptureInterface>&& d
     delegate_ = std::move(delegate);
 }
 
-bool ScreenCaptureProxy::CaptureScreen(const std::string& savePath, const Rect& rect)
+int32_t ScreenCaptureProxy::CaptureScreen(const std::string& savePath, const Rect& rect)
 {
-    CHECK_NULL_RETURN(delegate_, false);
+    CHECK_NULL_RETURN(delegate_, SCREEN_CAPTURE_STATUS_FAILED);
     return delegate_->CaptureScreen(savePath, rect);
 }
 } // namespace OHOS::UiTest

@@ -32,7 +32,7 @@ public:
 
 ScreenCaptureProxyRegistrar g_screenCaptureProxyRegistrar;
 } // namespace
-bool ScreenCaptureDelegate::CaptureScreen(const std::string& savePath, const Rect& rect)
+int32_t ScreenCaptureDelegate::CaptureScreen(const std::string& savePath, const Rect& rect)
 {
     return ScreenCaptureToFile(savePath, rect);
 }

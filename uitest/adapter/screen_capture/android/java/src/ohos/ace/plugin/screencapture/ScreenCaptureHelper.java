@@ -76,28 +76,28 @@ public class ScreenCaptureHelper extends ScreenCaptureHelperBase {
     }
 
     @Override
-    public boolean captureScreen(String savePath, CaptureRegion region, int displayId) {
+    public int captureScreen(String savePath, CaptureRegion region, int displayId) {
         Activity activity = getActivity();
         if (activity == null) {
             Log.e(TAG, "captureScreen: activity is null");
-            return false;
+            return RESULT_FAILED;
         }
 
         int currentDisplayId = getDisplayId(activity);
         if (currentDisplayId == -1) {
             Log.e(TAG, "captureScreen: failed to get displayId");
-            return false;
+            return RESULT_FAILED;
         }
 
         if (displayId != currentDisplayId) {
             Log.e(TAG, "captureScreen: displayId mismatch, requested=" + displayId + ", current=" + currentDisplayId);
-            return false;
+            return RESULT_FAILED;
         }
 
         String fullPath = resolvePath(activity, savePath);
         if (fullPath == null) {
             Log.e(TAG, "captureScreen: savePath invalid: " + savePath);
-            return false;
+            return RESULT_INVALID_PATH;
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -108,15 +108,15 @@ public class ScreenCaptureHelper extends ScreenCaptureHelperBase {
                 captureScreenWithPixelCopy(activity, region.left, region.top, region.right, region.bottom);
             release();
             if (screenshotBitmap != null) {
-                return saveBitmapToFile(screenshotBitmap, fullPath);
+                return saveBitmapToFile(screenshotBitmap, fullPath) ? RESULT_OK : RESULT_FAILED;
             } else {
                 Log.e(TAG, "captureScreen: screenshot bitmap is null");
-                return false;
+                return RESULT_FAILED;
             }
         } else {
             Log.e(TAG, "captureScreen: PixelCopy(Window) requires API level 26 or higher");
         }
-        return false;
+        return RESULT_FAILED;
     }
 
     private void release() {

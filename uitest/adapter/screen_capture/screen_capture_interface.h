@@ -16,16 +16,22 @@
 #ifndef TEST_TESTFWK_ARKXTEST_UITEST_CAPABILITY_SCREEN_CAPTURE_SCREEN_CAPTURE_INTERFACE_H
 #define TEST_TESTFWK_ARKXTEST_UITEST_CAPABILITY_SCREEN_CAPTURE_SCREEN_CAPTURE_INTERFACE_H
 
+#include <cstdint>
+
 #include "common_type.h"
 
 #include "base/memory/referenced.h"
 
 namespace OHOS::UiTest {
+constexpr int32_t SCREEN_CAPTURE_STATUS_OK = 0;
+constexpr int32_t SCREEN_CAPTURE_STATUS_INVALID_PATH = 1;
+constexpr int32_t SCREEN_CAPTURE_STATUS_FAILED = -1;
+
 class ScreenCaptureInterface {
 public:
     virtual ~ScreenCaptureInterface() = default;
 
-    virtual bool CaptureScreen(const std::string& savePath, const Rect& rect) = 0;
+    virtual int32_t CaptureScreen(const std::string& savePath, const Rect& rect) = 0;
 };
 } // namespace OHOS::UiTest
 

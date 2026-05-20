@@ -26,7 +26,7 @@ public:
     ScreenCaptureDelegate() = default;
     ~ScreenCaptureDelegate() override = default;
 
-    bool CaptureScreen(const std::string& savePath, const Rect& rect) override;
+    int32_t CaptureScreen(const std::string& savePath, const Rect& rect) override;
 
     ACE_DISALLOW_COPY_AND_MOVE(ScreenCaptureDelegate);
 };

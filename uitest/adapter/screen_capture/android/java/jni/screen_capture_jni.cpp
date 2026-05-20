@@ -41,7 +41,7 @@ static const JNINativeMethod METHODS[] = {
 static const char METHOD_CAPTURE_SCREEN[] = "captureScreen";
 static const char METHOD_REGION_CONSTRUCTOR[] = "<init>";
 static const char SIGNATURE_CAPTURE_SCREEN[] =
-    "(Ljava/lang/String;Lohos/ace/plugin/screencapture/ScreenCaptureHelperBase$CaptureRegion;I)Z";
+    "(Ljava/lang/String;Lohos/ace/plugin/screencapture/ScreenCaptureHelperBase$CaptureRegion;I)I";
 static const char SIGNATURE_REGION_CONSTRUCTOR[] = "(IIII)V";
 
 jobject g_jobject = nullptr;
@@ -103,43 +103,43 @@ void ScreenCaptureJni::NativeInit(JNIEnv* env, jobject jobj)
     env->DeleteLocalRef(cls);
 }
 
-bool ScreenCaptureJni::CaptureScreen(const std::string& savePath, const Rect& rect)
+int32_t ScreenCaptureJni::CaptureScreen(const std::string& savePath, const Rect& rect)
 {
     if (savePath.empty()) {
         LOGE("ScreenCaptureJni::CaptureScreen savePath is empty");
-        return false;
+        return SCREEN_CAPTURE_STATUS_INVALID_PATH;
     }
 
     std::lock_guard<std::mutex> lock(g_screenCaptureJniMutex);
     auto env = Ace::Platform::JniEnvironment::GetInstance().GetJniEnv();
-    CHECK_NULL_RETURN(env, false);
-    CHECK_NULL_RETURN(g_jobject, false);
-    CHECK_NULL_RETURN(g_pluginClass.captureScreen, false);
+    CHECK_NULL_RETURN(env, SCREEN_CAPTURE_STATUS_FAILED);
+    CHECK_NULL_RETURN(g_jobject, SCREEN_CAPTURE_STATUS_FAILED);
+    CHECK_NULL_RETURN(g_pluginClass.captureScreen, SCREEN_CAPTURE_STATUS_FAILED);
 
     jstring jPath = env->NewStringUTF(savePath.c_str());
-    CHECK_NULL_RETURN(jPath, false);
+    CHECK_NULL_RETURN(jPath, SCREEN_CAPTURE_STATUS_FAILED);
 
     jobject regionObj =
         env->NewObject(g_pluginClass.captureRegionClass, g_pluginClass.captureRegionCtor, static_cast<jint>(rect.left),
             static_cast<jint>(rect.top), static_cast<jint>(rect.right), static_cast<jint>(rect.bottom));
     if (regionObj == nullptr) {
         env->DeleteLocalRef(jPath);
-        return false;
+        return SCREEN_CAPTURE_STATUS_FAILED;
     }
 
-    jboolean result = env->CallBooleanMethod(
+    jint result = env->CallIntMethod(
         g_jobject, g_pluginClass.captureScreen, jPath, regionObj, static_cast<jint>(rect.displayId));
 
     if (env->ExceptionCheck()) {
         LOGE("ScreenCaptureJni::CaptureScreen Exception occurred during captureScreen call");
         env->ExceptionDescribe();
         env->ExceptionClear();
-        result = JNI_FALSE;
+        result = SCREEN_CAPTURE_STATUS_FAILED;
     }
 
     env->DeleteLocalRef(jPath);
     env->DeleteLocalRef(regionObj);
 
-    return result == JNI_TRUE;
+    return static_cast<int32_t>(result);
 }
 } // namespace OHOS::UiTest
