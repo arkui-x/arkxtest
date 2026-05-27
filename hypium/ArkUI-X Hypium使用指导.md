@@ -4,8 +4,8 @@
 
 DevEco Testing Hypium （以下简称Hypium）是跨平台ArkUI-X的UI自动化测试框架，支持用户使用Python语言为应用编写UI自动化测试脚本，主要包含以下特性：
 
-1. Hypium提供了**控件定位**能力，支持触摸屏、功能键等**模拟输入**功能，能够覆盖多类场景上的自动化用例编写需求，支持Android、iOS手机设备。
-2. Hypium能够为执行的用例生成详细的**用例执行报告**，并且自动记录设备日志以及执行步骤截图，为用户提供高效和专业的测试用例执行和结果分析体验。
+1. Hypium提供了**控件定位**能力，支持触摸屏、功能键等**模拟输入**功能，适用于多种场景的自动化用例编写需求，支持Android、iOS手机设备。
+2. Hypium能够为执行的用例生成详细的**用例执行报告**，并且自动记录设备日志以及执行步骤截图，为用户提供高效、专业的测试执行与结果分析体验。
 
 ## 安装向导
 
@@ -19,20 +19,29 @@ DevEco Testing Hypium （以下简称Hypium）是跨平台ArkUI-X的UI自动化�
 
 **3.安装Hypium**
 
-[下载DevEco Testing Hypium安装包]()。下载后解压该安装包。进入解压后的文件目录执行以下命令，按照顺序安装4个安装包（命令中版本号仅做示例，请以实际版本号为准）。
+使用安装包离线安装的方式。
 
-```python
-python -m pip install xdevice-6.0.6.210.tar.gz
-python -m pip install xdevice-devicetest-6.0.6.210.tar.gz
-python -m pip install xdevice-ohos-6.0.6.210.tar.gz
+需要下载四个安装包，分别为：xdevice、xdevice-devicetest、xdevice-ohos和hypium。
+
+其中，xdevice、xdevice-devicetest和xdevice-ohos从如下地址下载：[下载地址](https://developer.huawei.com/consumer/cn/download/deveco-testing-hypium)，进入链接后选择“DevEco Testing Hypium 6.x.x.x”版本进行下载。这里以6.0.7.210版本为例，下载后解压缩，从压缩包中找到如下三个文件：xdevice-6.0.7.210.tar.gz、xdevice-devicetest-6.0.7.210.tar.gz、xdevice-ohos-6.0.7.210.tar.gz
+
+hypium安装包放在本文档的同级目录中，地址如下：[Hypium安装包](./hypium-7.0.1.0.tar.gz)。
+
+将上述安装包找到之后，按照顺序安装4个安装包，命令如下：
+
+```bash
+python -m pip install xdevice-6.0.7.210.tar.gz
+python -m pip install xdevice-devicetest-6.0.7.210.tar.gz
+python -m pip install xdevice-ohos-6.0.7.210.tar.gz
 python -m pip install hypium-7.0.1.0.tar.gz
-
-# 此版本仅作为示例，实际请根据项目使用的版本选择
 ```
+
+**4.DevEco Testing Hypium插件安装及使用方法**
+PyCharm插件安装及使用方法，请参考[DevEco Testing Hypium插件安装及使用方法](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/hypium-python-guidelines)中的第5部分：《5.DevEco Testing Hypium插件安装及使用方法》。
 
 ## 创建Hypium工程
 
-点击PyCharm顶部，选择File -> New Project 进入模板工程创建面板。
+点击PyCharm菜单，选择File -> New Project 进入模板工程创建面板。
 
 ![image-1](./ArkUI-X%20Hypium使用指导.assets/1.png)
 
@@ -40,13 +49,13 @@ python -m pip install hypium-7.0.1.0.tar.gz
 
 ![image-2](./ArkUI-X%20Hypium使用指导.assets/2.png)
 
-选择对应模板，配置工程路径以及Python环境参数，点击Create即可创建Hypium测试用例工程。工程目录中包含一个模板用例和一个模板配置文件user_config.xml（仅支持单设备）。
+选择对应模板，配置工程路径以及Python环境参数。点击Create即可创建Hypium测试用例工程。工程目录中包含一个模板用例和一个模板配置文件user_config.xml（仅支持单设备）。
 
 创建完成后的界面如下图所示。
 
 ![image-3](./ArkUI-X%20Hypium使用指导.assets/3.png)
 
-若产生警告无配置Python解释器，则点击PyCharm右上角设置，为工程配置环境。
+若出现未配置Python解释器警告，则点击PyCharm右上角设置，为工程配置环境。
 
 ![image-4](./ArkUI-X%20Hypium使用指导.assets/4.png)
 
@@ -54,59 +63,75 @@ python -m pip install hypium-7.0.1.0.tar.gz
 
 ![image-5](./ArkUI-X%20Hypium使用指导.assets/5.png)
 
-可在PyCharm终端键入python -m hypium.docs查询跨平台hypium接口文档，编写testcases/Example.py中用例，即完成Hypium工程。代码示例如下
+可在PyCharm终端键入python -m hypium.docs查询跨平台Hypium接口文档，并在testcases/Example.py中编写用例，即可完成Hypium工程。代码示例如下
 
 ```python
 # !/usr/bin/env python
 # coding: utf-8
-from hypium import UiDriver, BY
-from devicetest.core.test_case import TestCase, Step
+# 导入 Hypium 测试框架的核心模块
+from hypium import UiDriver, BY          # UiDriver: UI自动化驱动；BY: 元素定位方式（如ID、文本等）
+from devicetest.core.test_case import TestCase, Step  # TestCase: 测试用例基类；Step: 步骤日志装饰器
+
+# 被测应用的包名，请替换为实际应用包名
 PACKAGE = "com.example.arkuitest"
 
+# 自定义断言函数：比较实际值与期望值，不等则抛出异常并输出友好信息
 def assert_equal(actual, expected, message):
     if actual != expected:
         raise AssertionError(f"{message}: actual={actual!r}, expected={expected!r}")
-        
+
+# 测试类必须继承自 TestCase
 class Example(TestCase):
     def __init__(self, controllers):
+        # 设置测试用例标识（通常为类名）
         self.TAG = self.__class__.__name__
+        # 调用父类初始化，传入标识和控制器参数
         TestCase.__init__(self, self.TAG, controllers)
+        # 连接设备上的 UiDriver，用于后续UI操作
         self.driver = UiDriver.connect()
 
+    # 测试方法：具体测试逻辑
     def _test_tc_01_click(self):
+        # 通过组件ID查找按钮组件
         button = self.driver.find_component(BY.id("clickBtn"))
+        # 执行点击操作
         self.driver.click(button)
+        # 等待0.5秒，确保UI响应
         self.driver.wait(0.5)
 
+        # 查找显示结果的组件
         result = self.driver.find_component(BY.id("clickResult"))
+        # 断言结果文本与预期一致
         assert_equal(result.getText(), "点击成功", "点击结果不符合预期")
 
+    # setup：初始化工作
     def setup(self):
-        Step("【setup】启动被测应用")
-        self.driver.start_app(PACKAGE)
-        self.driver.wait(2)
+        Step("【setup】启动被测应用")   # Step用于在报告中记录关键步骤
+        self.driver.start_app(PACKAGE)  # 启动应用
+        self.driver.wait(2)             # 等待2秒至应用完全启动
 
+    # process：核心测试流程，按顺序调用具体的测试方法
     def process(self):
-        self._test_tc_01_click()
-        print("[hypium] Example — PASS")
-        self.driver.wait(2)
+        self._test_tc_01_click()        # 执行测试逻辑
+        print("[hypium] Example — PASS") # 测试通过时输出
+        self.driver.wait(2)              # 可选等待，便于观察结果
 
+    # teardown：测试结束后清理工作（如停止应用）
     def teardown(self):
         Step("【teardown】停止被测应用")
-        self.driver.stop_app(PACKAGE)
+        self.driver.stop_app(PACKAGE)    # 停止应用
 
-
+# 当脚本直接运行时，创建测试实例并执行完整生命周期
 if __name__ == "__main__":
     test = Example(controllers={"devices": [], "testargs": {}})
-    # test.setup()
+    test.setup()        # 执行初始化
     try:
-        test.process()
+        test.process()  # 执行测试主体
     finally:
-        test.teardown()
+        test.teardown() # 确保最终执行清理工作
 ```
 
 **查找组件边界代码参考**
-
 ```python
     def _get_viewport_bounds(self, component):
         """获取组件边界"""
@@ -120,7 +145,6 @@ if __name__ == "__main__":
 ```
 
 **判定组件是否位于可见屏幕内代码参考**
-
 ```python
     def _get_component_viewport_state(self, component_id, comp):
         """判断组件是否位于当前可见屏幕内，并给出建议滚动方向。"""
@@ -154,7 +178,6 @@ if __name__ == "__main__":
 ```
 
 **屏幕滚动代码参考**
-
 ```python
     def _swipe_screen(self, direction, distance=40, swipe_time=0.6):
         """用绝对屏幕坐标滑动"""
@@ -180,9 +203,9 @@ if __name__ == "__main__":
         <arkuix>
 	        <!-- platform：调试设备系统android/ios -->
             <platform>android</platform>
-            <!-- host：远端server的ip，本地设备无需填写。 -->
+            <!-- host：远端server的ip，本地设备非必填。 -->
             <host>127.0.0.1</host>
-            <!-- port：远端server的端口，本地设备无需填写。 -->
+            <!-- port：远端server的端口，本地设备非必填。 -->
             <port>8017</port>
             <!-- device_id：所连接设备Id。 -->
             <device_id>af7bf9e</device_id>
@@ -199,8 +222,11 @@ if __name__ == "__main__":
     <devicelog>ON</devicelog>
 </user_config>
 ```
+其中，设备Id的获取方式如下：</br>
+Android设备： 在终端中敲入命令adb devices，即可获取到设备的Id。</br>
+iOS设备：打开Xcode，在菜单栏选择 Window → Devices and Simulators，在弹出的窗口中，左侧边栏列出的所有连接设备，其右侧显示的“Identifier”即为该设备的Id</br>
 
-## 创建ETS 测试工程
+## 创建ETS测试工程
 
 根据https://gitcode.com/arkui-x/cli/blob/master/README.md官方文档配置ACE Tools工具链。
 
@@ -214,7 +240,7 @@ if __name__ == "__main__":
 
 Python 用例依赖 ETS 页面中的组件 ID。
 
-使用DevEco Studio打开已创建工程，编写ETS 测试 UI 代码放在entry/src/ohosTest/ets/testability目录下。
+使用DevEco Studio打开已创建工程，编写ETS 测试 UI 代码放在entry/src/main/ets/pages目录下。
 
 ![image-7](./ArkUI-X%20Hypium使用指导.assets/7.png)
 
@@ -256,7 +282,7 @@ struct Index {
 
 ## 启动端对端测试
 
-1.链接Android设备，打开终端，键入ace test apk --b com.example.arkuitest --m entry_test --unittest OpenHarmonyTestRunner --socket命令，等待测试工程安装、启动。
+1.连接Android设备，打开终端，进入deveco工程目录，键入ace test apk --b com.example.arkuitest --m entry_test --unittest OpenHarmonyTestRunner --socket命令，等待测试工程安装、启动。
 
 ![image-8](./ArkUI-X%20Hypium使用指导.assets/8.png)
 
@@ -272,16 +298,19 @@ ace test ios --b com.example.arkuitest --m entry_test --unittest OpenHarmonyTest
 ace test apk --b com.example.arkuitest --m entry_test --unittest OpenHarmonyTestRunner --device <device_id> --socket
 ```
 
+其中，device子命令是可选的，只有当多个设备连接在电脑上时才需要指定。
+
 socket、device子命令详细用法见https://gitcode.com/arkui-x/cli/blob/master/README.md#ace-test。
 
 2.执行PyCharm中用例
+使用PyCharm打开Example.py文件，点击运行按钮。
 
 ![image-9](./ArkUI-X%20Hypium使用指导.assets/9.png)
 
 3.结果显示
 
-2. Python 用例执行后输出 `Example — PASS`。
-3. ETS 页面中的 `clickResult` 从“未点击”变为“点击成功”。
+1. Python 用例执行后输出 `Example — PASS`。
+2. ETS 页面中的 `clickResult` 从“未点击”变为“点击成功”。
 3. 应用退出。
 
 ## 已有Hypium测试工程跨平台运行更改
@@ -290,19 +319,11 @@ socket、device子命令详细用法见https://gitcode.com/arkui-x/cli/blob/mast
 
 ![image-10](./ArkUI-X%20Hypium使用指导.assets/10.png)
 
-2.将原有页面及资源从main目录下移至ohosTest目录下。
+2.若xts用例的执行影响Hypium测试，将下图中xts执行语句注释即可。
 
-![image-11](./ArkUI-X%20Hypium使用指导.assets/11.png)
+![image-13](./ArkUI-X%20Hypium使用指导.assets/11.png)
 
-3.注释原有Hypium工程中的启动测试demo语句，跨平台测试由工具链命令启动被测页面。
-
-![image-12](./ArkUI-X%20Hypium使用指导.assets/12.png)
-
-4.若xts用例的执行影响Hypium测试，将下图中xts执行语句注释即可。
-
-![image-13](./ArkUI-X%20Hypium使用指导.assets/13.png)
-
-5.需由Deveco Studio终端键入命令，启动测试页面。
+3.需由Deveco Studio终端键入命令，启动测试应用。
 
 ## 常见问题
 
