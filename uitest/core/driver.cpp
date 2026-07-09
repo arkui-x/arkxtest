@@ -32,6 +32,7 @@
 #include "core/event/key_event.h"
 #include "core/event/touch_event.h"
 #include "touch_inject_proxy.h"
+#include "uicontent_proxy.h"
 
 namespace OHOS::UiTest {
 using namespace std;
@@ -148,10 +149,17 @@ Ace::Platform::UIContent* GetUIContent()
         HILOG_ERROR("Driver GetUIContent failed. delegator is not initialized");
         return nullptr;
     }
-    auto topAbility = delegator->GetCurrentTopAbility();
-    CHECK_NULL_RETURN(topAbility, nullptr);
-    auto uiContent = delegator->GetUIContent(topAbility->instanceId_);
-    return uiContent;
+    int32_t instanceId = -1;
+    OHOS::UiTest::RunOnMainThread([&]() {
+        auto topAbility = delegator->GetCurrentTopAbility();
+        if (topAbility != nullptr) {
+            instanceId = topAbility->instanceId_;
+        }
+    });
+    if (instanceId < 0) {
+        return nullptr;
+    }
+    return delegator->GetUIContent(instanceId);
 }
 
 Driver::Driver()
@@ -1605,6 +1613,7 @@ vector<unique_ptr<Component>> Driver::FindComponents(const On& on)
     vector<unique_ptr<Component>> components;
     OHOS::Ace::Platform::ComponentInfo info;
     auto uiContent = GetUIContent();
+    CHECK_NULL_RETURN(uiContent, components);
     uiContent->GetAllComponents(0, info);
     Rect infoRect = GetBounds(info);
     vector<shared_ptr<Component>> allComponents;
