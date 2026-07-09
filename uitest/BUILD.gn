@@ -51,6 +51,7 @@ ohos_source_set("uitest_core_static") {
     "${uitest_adapter_screen_capture_path}",
     "${uitest_adapter_display_path}",
     "${uitest_adapter_touch_inject_path}",
+    "${uitest_adapter_path}/uicontent",
     "${uitest_core_path}",
   ]
 
@@ -101,6 +102,7 @@ ohos_source_set("uitest_core_static") {
         "${root_path}/adapter/display/ios:display_ios",
         "${root_path}/adapter/screen_capture/iOS:screencapture_ios",
         "${root_path}/adapter/touch_inject/ios:touchinject_ios",
+        "${root_path}/adapter/uicontent/ios:uicontent_ios",
       ]
       frameworks = [
         "CoreGraphics.framework",
