@@ -167,7 +167,8 @@ void GetAllComponentsOnUIThread(Ace::Platform::UIContent* uiContent,
     OHOS::Ace::Platform::ComponentInfo& components)
 {
     CHECK_NULL_VOID(uiContent);
-    auto taskExecutor = Ace::Container::CurrentTaskExecutorSafely();
+    auto container = Ace::Container::CurrentSafely();
+    auto taskExecutor = (container != nullptr) ? container->GetTaskExecutor() : nullptr;
     if (taskExecutor == nullptr) {
         HILOG_WARN("GetAllComponentsOnUIThread: task executor unavailable, fallback to direct call");
         uiContent->GetAllComponents(0, components);
