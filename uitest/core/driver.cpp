@@ -23,6 +23,7 @@
 
 #include "ability_delegator/ability_delegator_registry.h"
 #include "accessibility_node.h"
+#include "core/common/container.h"
 #include "display_interface.h"
 #include "foundation/arkui/ace_engine/frameworks/core/pipeline/container_window_manager.h"
 #include "screen_capture_proxy.h"
@@ -160,6 +161,24 @@ Ace::Platform::UIContent* GetUIContent()
         return nullptr;
     }
     return delegator->GetUIContent(instanceId);
+}
+
+void GetAllComponentsOnUIThread(Ace::Platform::UIContent* uiContent,
+    OHOS::Ace::Platform::ComponentInfo& components)
+{
+    CHECK_NULL_VOID(uiContent);
+    auto container = Ace::Container::CurrentSafely();
+    auto taskExecutor = (container != nullptr) ? container->GetTaskExecutor() : nullptr;
+    if (taskExecutor == nullptr) {
+        HILOG_WARN("GetAllComponentsOnUIThread: task executor unavailable, fallback to direct call");
+        uiContent->GetAllComponents(0, components);
+        return;
+    }
+    taskExecutor->PostSyncTask(
+        [&components, uiContent]() {
+            uiContent->GetAllComponents(0, components);
+        },
+        Ace::TaskExecutor::TaskType::UI, "ArkUI-XUiTestGetAllComponents");
 }
 
 Driver::Driver()
@@ -804,7 +823,7 @@ void Driver::Fling(UiDirection direction, uint32_t speed)
     OHOS::Ace::Platform::ComponentInfo info;
     auto uiContent = GetUIContent();
     CHECK_NULL_VOID(uiContent);
-    uiContent->GetAllComponents(0, info);
+    GetAllComponentsOnUIThread(uiContent, info);
     Point from, to;
     CalculateDirection(info, direction, from, to);
     const int distanceX = from.x - to.x;
@@ -1578,7 +1597,7 @@ unique_ptr<Component> Driver::FindComponent(const On& on)
     OHOS::Ace::Platform::ComponentInfo info;
     auto uiContent = GetUIContent();
     CHECK_NULL_RETURN(uiContent, nullptr);
-    uiContent->GetAllComponents(0, info);
+    GetAllComponentsOnUIThread(uiContent, info);
     vector<shared_ptr<Component>> allComponents;
     Rect infoRect = GetBounds(info);
     if (on.withIn) {
@@ -1614,7 +1633,7 @@ vector<unique_ptr<Component>> Driver::FindComponents(const On& on)
     OHOS::Ace::Platform::ComponentInfo info;
     auto uiContent = GetUIContent();
     CHECK_NULL_RETURN(uiContent, components);
-    uiContent->GetAllComponents(0, info);
+    GetAllComponentsOnUIThread(uiContent, info);
     Rect infoRect = GetBounds(info);
     vector<shared_ptr<Component>> allComponents;
     if (on.withIn) {
